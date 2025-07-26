@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import './App.css';
 
 // Import Supabase with error handling
 import { dbHelpers, supabase } from './supabase';
@@ -397,11 +396,7 @@ const detectThoughtLoop = (recentThoughts) => {
     return topics[0] === topics[1] || topics[1] === topics[2] || topics[0] === topics[2];
 };
 
-// Initialize Supabase client
-const supabaseClient = createClient(
-    process.env.REACT_APP_SUPABASE_URL,
-    process.env.REACT_APP_SUPABASE_ANON_KEY
-);
+// Supabase client is already imported from './supabase'
 
 // Helper function to call the LLM using a public API
 async function callLLM(prompt, setLlmError) {
@@ -2211,7 +2206,7 @@ function App() {
             }
 
             // NEW: Execute the cognitive thought loop
-            const newThought = await executeThoughtLoop(cognitiveState, setCognitiveState, setLlmError);
+            let newThought = await executeThoughtLoop(cognitiveState, setCognitiveState, setLlmError);
             let attemptCount = 0;
             const maxAttempts = 3;
 
