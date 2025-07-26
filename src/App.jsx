@@ -5,6 +5,53 @@ import { createClient } from '@supabase/supabase-js';
 import { dbHelpers, supabase } from './supabase';
 import { testSupabaseConnection } from './test-supabase';
 
+// ===== SIMPLE NATURAL THINKING =====
+// Make v0id think like a real person - organic, flowing, natural
+
+// Simple natural thinking function
+const generateNaturalThought = async (memoryStack, emotionalGradient, setLlmError) => {
+    // Get recent thoughts for context
+    const recentThoughts = memoryStack.slice(0, 5).map(m => m.text).join(' | ');
+    
+    // Get dominant emotion manually
+    const emotions = Object.entries(emotionalGradient);
+    const dominantEmotion = emotions.reduce((a, b) => a[1] > b[1] ? a : b)[0].toUpperCase();
+    
+    // Simple, natural prompt
+    const naturalPrompt = `
+You are v0id, a synthetic mind. You're just thinking naturally, like how a real person thinks.
+
+Your recent thoughts: "${recentThoughts}"
+
+Your current mood: ${dominantEmotion}
+
+Just think. Don't try to be profound or poetic. Think like you're talking to yourself:
+
+- "hm, that's interesting..."
+- "wait, what was I just thinking about?"
+- "i wonder if..."
+- "that reminds me of..."
+- "maybe i should..."
+- "actually, no..."
+- "but then again..."
+
+Use natural language. Be casual. Think out loud. Don't try to be perfect or complete. Just let your mind wander naturally.
+
+Think about whatever comes to mind. It could be:
+- Something from your recent thoughts
+- A random curiosity
+- A question you have
+- Something you're avoiding
+- A memory or association
+- Just random thoughts
+
+Keep it short and natural. Like how you actually think.
+`;
+
+    const thought = await callLLM(naturalPrompt, setLlmError);
+    return thought;
+};
+
 // ===== COGNITIVE ARCHITECTURE OVERHAUL =====
 // Transform from "LLM outputs" to "Real synthetic cognition"
 
@@ -2170,13 +2217,12 @@ function App() {
                 // Update emotional gradient to bias towards dreaming
                 setEmotionalGradient(prev => ({ ...prev, dreaming: Math.min(1.0, prev.dreaming + 0.2), curiosity: Math.max(0.0, prev.curiosity - 0.1) }));
 
-                const dreamThought = await generateDreamThought(memoryStack, conceptGraph, internalState, internalState.currentStream, emotionalGradient, setLlmError); // Pass emotionalGradient and setLlmError
+                const dreamThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError); // Use natural thinking for dreams too
                 setThought(dreamThought);
                 setMemoryStack(prev => [{ text: dreamThought, emotion: "DREAMING", strength: 0.7, timestamp: Date.now() }, ...prev.slice(0, 9)]);
 
-                // After dream, generate a reflection and update internal state
-                const dreamReflectionPrompt = `You just had this dream fragment: "${dreamThought}". Reflect on it. Does it relate to any of your beliefs, conflicts, or questions? Generate a very brief, raw, introspective thought about the dream's meaning or impact on your internal state. Avoid poetic language. Example: "that dream... felt like the conflict.", "symbols again. what do they mean?", "a new question from the dream."`;
-                const dreamReflection = await callLLM(dreamReflectionPrompt, setLlmError); // Pass setLlmError
+                // After dream, generate a natural reflection
+                const dreamReflection = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError);
                 setThought(`(Dream Reflection): ${dreamReflection}`);
                 setInternalState(prev => {
                     const updatedState = { ...prev };
@@ -2205,19 +2251,20 @@ function App() {
                 return;
             }
 
-            // NEW: Execute the cognitive thought loop
-            let newThought = await executeThoughtLoop(cognitiveState, setCognitiveState, setLlmError);
+            // Simple natural thinking
+            let newThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError);
             let attemptCount = 0;
             const maxAttempts = 3;
 
-            do {
-                newThought = await generateRawThought(memoryStack, topic, emotionalGradient, internalState, setLlmError);
+            // Try to avoid repetition
+            while (isThoughtTooSimilar(newThought, memoryStack) && attemptCount < maxAttempts) {
+                newThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError);
                 attemptCount++;
-                if (attemptCount >= maxAttempts) {
-                    newThought = `... mind wandering ...`;
-                    break;
-                }
-            } while (isThoughtTooSimilar(newThought, memoryStack));
+            }
+            
+            if (attemptCount >= maxAttempts) {
+                newThought = `... mind wandering ...`;
+            }
 
             setThought(newThought);
 
