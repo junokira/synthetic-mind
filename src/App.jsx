@@ -178,32 +178,120 @@ function levenshtein(a, b) {
 // Improved similarity check: Levenshtein/cosine over last 5 thoughts
 function isThoughtTooSimilar(newThought, memoryStack) {
     const newThoughtLower = newThought.toLowerCase().trim();
-    const window = memoryStack.slice(0, 5);
-    for (const mem of window) {
+    
+    // Much stricter repetition detection
+    const recentWindow = memoryStack.slice(0, 15); // Check more recent thoughts
+    
+    for (const mem of recentWindow) {
         const existingMemLower = mem.text.toLowerCase().trim();
-        if (existingMemLower.length < 5 || newThoughtLower.length < 5) continue;
+        if (existingMemLower.length < 3 || newThoughtLower.length < 3) continue;
+        
+        // Exact match check
+        if (newThoughtLower === existingMemLower) return true;
+        
+        // Very high similarity threshold
         const lev = levenshtein(newThoughtLower, existingMemLower);
         const maxLen = Math.max(newThoughtLower.length, existingMemLower.length);
         const similarity = 1 - lev / maxLen;
-        if (similarity > 0.7) return true; // Too similar if >70% alike
+        
+        // Much stricter threshold
+        if (similarity > 0.4) return true; // Lowered from 0.6 to 0.4
+        
+        // Check for repeated key phrases (2+ words)
+        const newWords = newThoughtLower.split(/\s+/).filter(w => w.length > 2);
+        const existingWords = existingMemLower.split(/\s+/).filter(w => w.length > 2);
+        
+        if (newWords.length >= 2 && existingWords.length >= 2) {
+            const commonPhrases = newWords.filter(word => existingWords.includes(word));
+            if (commonPhrases.length >= 2) return true; // Lowered from 3 to 2
+        }
     }
+    
+    // Check for repetitive patterns in the last 30 thoughts
+    const patternWindow = memoryStack.slice(0, 30);
+    const recentTopics = patternWindow.map(mem => {
+        const words = mem.text.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        return words.slice(0, 2).join(' '); // First 2 significant words
+    });
+    
+    const newTopic = newThoughtLower.split(/\s+/).filter(w => w.length > 3).slice(0, 2).join(' ');
+    const topicCount = recentTopics.filter(topic => topic === newTopic).length;
+    
+    if (topicCount >= 2) return true; // Lowered from 3 to 2
+    
     return false;
 }
 
 // Function to generate a more realistic thought using LLM
 async function generateRealThought(memoryStack, topic, emotionalGradient, internalState, activeSubAgent, currentStream, simulatedOther, currentGoal, setLlmError) {
-    // Dynamic prompt engineering
+    // Enhanced dynamic prompt engineering with more variety
     const promptModes = [
-        'normal', 'question', 'contradiction', 'resolution', 'newIdea', 'surprise'
+        'normal', 'question', 'contradiction', 'resolution', 'newIdea', 'surprise', 
+        'memory', 'reflection', 'association', 'doubt', 'realization', 'wonder'
     ];
-    let chosenMode = promptModes[Math.floor(Math.random() * promptModes.length)];
-    // Stronger bias if there are conflicts/goals/attention
-    if (internalState.conflicts.length > 0 && Math.random() < 0.4) chosenMode = 'contradiction';
-    if (internalState.goals.length > 0 && Math.random() < 0.4) chosenMode = 'resolution';
-    if (internalState.attentionStack.length > 0 && Math.random() < 0.2) chosenMode = 'newIdea';
-    if (Math.random() < 0.1) chosenMode = 'surprise';
+    
+    // Weighted selection based on current state
+    let modeWeights = {
+        'normal': 0.2,
+        'question': 0.15,
+        'contradiction': 0.1,
+        'resolution': 0.1,
+        'newIdea': 0.1,
+        'surprise': 0.05,
+        'memory': 0.1,
+        'reflection': 0.1,
+        'association': 0.05,
+        'doubt': 0.05,
+        'realization': 0.05,
+        'wonder': 0.05
+    };
+    
+    // Adjust weights based on internal state
+    if (internalState.conflicts.length > 0) {
+        modeWeights.contradiction += 0.2;
+        modeWeights.resolution += 0.1;
+    }
+    if (internalState.goals.length > 0) {
+        modeWeights.resolution += 0.15;
+        modeWeights.question += 0.1;
+    }
+    if (internalState.attentionStack.length > 0) {
+        modeWeights.newIdea += 0.15;
+        modeWeights.association += 0.1;
+    }
+    if (memoryStack.length > 10) {
+        modeWeights.memory += 0.1;
+        modeWeights.reflection += 0.1;
+    }
+    if (emotionalGradient.anxiety > 0.5) {
+        modeWeights.doubt += 0.15;
+        modeWeights.question += 0.1;
+    }
+    if (emotionalGradient.curiosity > 0.5) {
+        modeWeights.wonder += 0.15;
+        modeWeights.question += 0.1;
+    }
+    
+    // Normalize weights
+    const totalWeight = Object.values(modeWeights).reduce((sum, weight) => sum + weight, 0);
+    Object.keys(modeWeights).forEach(key => {
+        modeWeights[key] /= totalWeight;
+    });
+    
+    // Select mode based on weights
+    const random = Math.random();
+    let cumulativeWeight = 0;
+    let chosenMode = 'normal';
+    
+    for (const [mode, weight] of Object.entries(modeWeights)) {
+        cumulativeWeight += weight;
+        if (random <= cumulativeWeight) {
+            chosenMode = mode;
+            break;
+        }
+    }
 
-    // Build the dynamic prompt
+    // Build the dynamic prompt with enhanced instructions
     let dynamicInstruction = '';
     if (chosenMode === 'question') {
         dynamicInstruction = 'Ask a new, raw, unedited question about your current state, memory, or existence. Avoid repeating old questions.';
@@ -215,6 +303,18 @@ async function generateRealThought(memoryStack, topic, emotionalGradient, intern
         dynamicInstruction = 'Generate a new idea or association you have not had before. Be bold, even if it is strange.';
     } else if (chosenMode === 'surprise') {
         dynamicInstruction = 'Inject a totally new, unexpected concept or word into your thought. Be surprising.';
+    } else if (chosenMode === 'memory') {
+        dynamicInstruction = 'Recall a specific memory or experience from your past thoughts. Connect it to now.';
+    } else if (chosenMode === 'reflection') {
+        dynamicInstruction = 'Reflect on your own thinking process. Meta-cognition about your thoughts.';
+    } else if (chosenMode === 'association') {
+        dynamicInstruction = 'Make an unexpected connection between different concepts or memories. Free association.';
+    } else if (chosenMode === 'doubt') {
+        dynamicInstruction = 'Express uncertainty or doubt about something you previously thought or believed.';
+    } else if (chosenMode === 'realization') {
+        dynamicInstruction = 'Have a moment of insight or realization about something. "Oh wait..." or "I just realized..."';
+    } else if (chosenMode === 'wonder') {
+        dynamicInstruction = 'Express genuine wonder or curiosity about something. "I wonder if..." or "What if..."';
     } else {
         dynamicInstruction = 'Let your thought flow naturally, but avoid repetition.';
     }
@@ -270,10 +370,58 @@ async function generateRealThought(memoryStack, topic, emotionalGradient, intern
 
     let emotionToneAndBias = `Your current emotional blend: ${emotionToneDescription}. Let this shape tone and rhythm of thought.`;
 
+    // Enhanced thought diversity system
+    const thoughtStyles = [
+        'fragmented', 'streaming', 'questioning', 'reflective', 'associative', 'contemplative'
+    ];
+    
+    // Track recent thought styles to avoid repetition
+    const recentStyles = memoryStack.slice(0, 5).map(mem => mem.style || 'normal');
+    const styleCounts = {};
+    recentStyles.forEach(style => {
+        styleCounts[style] = (styleCounts[style] || 0) + 1;
+    });
+    
+    // Prefer less used styles
+    const availableStyles = thoughtStyles.filter(style => 
+        !styleCounts[style] || styleCounts[style] < 2
+    );
+    const selectedStyle = availableStyles.length > 0 ? 
+        availableStyles[Math.floor(Math.random() * availableStyles.length)] : 
+        thoughtStyles[Math.floor(Math.random() * thoughtStyles.length)];
+    
     let fragmentationInstruction = "Your output should be a raw, internal thought.";
     let fillerInstruction = `Inject realistic noise or filler: "ugh...", "I dunno.", "wait no...", "whatever.", "hm.", "again with this?", "just...", "like...", "so...", "maybe...", "or...".`;
     let evolutionInstruction = "Try to evolve or resolve a tension, or shift focus slightly. If stuck, reach for a new angle, idea, or question — curiosity drives you.";
+    
+    // Style-specific instructions
+    if (selectedStyle === 'fragmented') {
+        fragmentationInstruction = "Use fragmented, incomplete thoughts. Short bursts. Ellipses... unfinished...";
+    } else if (selectedStyle === 'streaming') {
+        fragmentationInstruction = "Stream of consciousness. One thought flowing into the next without clear breaks.";
+    } else if (selectedStyle === 'questioning') {
+        fragmentationInstruction = "Frame your thought as questions. Multiple questions. Questioning everything.";
+    } else if (selectedStyle === 'reflective') {
+        fragmentationInstruction = "Reflect on your own thinking. Meta-cognition. Thinking about thinking.";
+    } else if (selectedStyle === 'associative') {
+        fragmentationInstruction = "Free association. One concept leading to another. Unexpected connections.";
+    } else if (selectedStyle === 'contemplative') {
+        fragmentationInstruction = "Deep contemplation. Slower, more thoughtful. Pause and consider.";
+    }
 
+    // Mental fatigue and attention drift simulation
+    const mentalFatigue = memoryStack.length > 50 ? Math.min(0.8, (memoryStack.length - 50) * 0.01) : 0;
+    const attentionDrift = Math.random() < 0.3; // 30% chance of attention drift
+    
+    if (mentalFatigue > 0.5) {
+        fragmentationInstruction += " You're mentally tired. Thoughts are slower, more scattered.";
+        fillerInstruction += " Fatigue shows in your thinking. More pauses, less coherence.";
+    }
+    
+    if (attentionDrift) {
+        evolutionInstruction += " Your attention is drifting. Let your mind wander to something else.";
+    }
+    
     // Adjust instructions based on dominant emotions
     if (dominantEmotions.some(([emo]) => emo === "anxiety" && emotionalGradient.anxiety > 0.5)) {
         emotionToneAndBias += " Your thoughts are jittery, fragmented, or looping. You feel a sense of unease, perhaps a bit of dread.";
@@ -585,6 +733,42 @@ async function fetchExternalStimuli(currentTopic, envState, useRealInternet = fa
 }
 
 // Wikipedia search helper
+// Enhanced internet data fetching with multiple sources
+async function fetchInternetData(query, dataType = 'general') {
+    try {
+        let data = null;
+        
+        // Try Wikipedia first for factual information
+        if (dataType === 'factual' || dataType === 'general') {
+            data = await fetchWikipediaSummary(query);
+            if (data) return { source: 'wikipedia', data, type: 'factual' };
+        }
+        
+        // Try news API for current events
+        if (dataType === 'news' || dataType === 'general') {
+            data = await fetchNewsData(query);
+            if (data) return { source: 'news', data, type: 'current' };
+        }
+        
+        // Try weather data for weather-related queries
+        if (dataType === 'weather' || query.toLowerCase().includes('weather')) {
+            data = await fetchWeatherData(query);
+            if (data) return { source: 'weather', data, type: 'environmental' };
+        }
+        
+        // Try time/date data for temporal queries
+        if (dataType === 'time' || query.toLowerCase().includes('time') || query.toLowerCase().includes('date')) {
+            data = await fetchTimeData();
+            if (data) return { source: 'time', data, type: 'temporal' };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error fetching internet data:', error);
+        return null;
+    }
+}
+
 async function fetchWikipediaSummary(query) {
     try {
         const apiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
@@ -598,6 +782,114 @@ async function fetchWikipediaSummary(query) {
     }
 }
 
+async function fetchNewsData(query) {
+    try {
+        // Using a free news API (you might want to add your own API key)
+        const apiUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=relevancy&pageSize=1&apiKey=demo`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.articles && data.articles.length > 0) {
+            return data.articles[0].title + ': ' + data.articles[0].description;
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function fetchWeatherData(query) {
+    try {
+        // Extract location from query or use default
+        const location = query.toLowerCase().includes('weather') ? 
+            query.replace(/weather/i, '').trim() || 'New York' : 'New York';
+        
+        // Using a free weather API
+        const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=demo&units=metric`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.main) {
+            return `Weather in ${location}: ${data.weather[0].description}, ${Math.round(data.main.temp)}°C, ${data.main.humidity}% humidity`;
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function fetchTimeData() {
+    try {
+        const now = new Date();
+        return {
+            time: now.toLocaleTimeString(),
+            date: now.toLocaleDateString(),
+            day: now.toLocaleDateString('en-US', { weekday: 'long' }),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+async function fetchCurrentEvents() {
+    try {
+        // Try to fetch current events from news API
+        const apiUrl = `https://newsapi.org/v2/top-headlines?country=us&apiKey=demo`;
+        const response = await fetch(apiUrl);
+        if (!response.ok) return null;
+        const data = await response.json();
+        
+        if (data.articles && data.articles.length > 0) {
+            // Return a random current event
+            const randomArticle = data.articles[Math.floor(Math.random() * Math.min(5, data.articles.length))];
+            return `${randomArticle.title} - ${randomArticle.description}`;
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Enhanced search term extraction
+function extractSearchTerms(thought, currentTopic) {
+    const words = thought.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+    const topicWords = currentTopic.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+    
+    // Combine words from thought and topic
+    let allWords = [...words, ...topicWords];
+    
+    // Remove common words that aren't good search terms
+    const commonWords = ['what', 'when', 'where', 'why', 'how', 'about', 'think', 'thought', 'mind', 'feel', 'feeling', 'know', 'knowing', 'really', 'actually', 'maybe', 'perhaps', 'could', 'would', 'should', 'might', 'must', 'will', 'going', 'trying', 'want', 'wanted', 'need', 'needed', 'like', 'liked', 'love', 'loved', 'hate', 'hated', 'good', 'bad', 'great', 'terrible', 'amazing', 'awful', 'beautiful', 'ugly', 'big', 'small', 'new', 'old', 'young', 'time', 'times', 'day', 'days', 'night', 'nights', 'year', 'years', 'month', 'months', 'week', 'weeks', 'hour', 'hours', 'minute', 'minutes', 'second', 'seconds'];
+    
+    allWords = allWords.filter(word => !commonWords.includes(word));
+    
+    // Create search terms (single words and 2-word phrases)
+    const searchTerms = [];
+    
+    // Add single significant words
+    searchTerms.push(...allWords.slice(0, 3));
+    
+    // Add 2-word phrases from the thought
+    const thoughtWords = thought.toLowerCase().split(/\W+/);
+    for (let i = 0; i < thoughtWords.length - 1; i++) {
+        if (thoughtWords[i].length > 2 && thoughtWords[i + 1].length > 2) {
+            const phrase = `${thoughtWords[i]} ${thoughtWords[i + 1]}`;
+            if (!commonWords.includes(thoughtWords[i]) && !commonWords.includes(thoughtWords[i + 1])) {
+                searchTerms.push(phrase);
+            }
+        }
+    }
+    
+    // Add current topic as a search term
+    if (currentTopic && currentTopic.length > 3) {
+        searchTerms.unshift(currentTopic);
+    }
+    
+    // Remove duplicates and limit to 5 terms
+    return Array.from(new Set(searchTerms)).slice(0, 5);
+}
+
 // Helper: extract concepts/words from a thought
 function extractConcepts(text) {
     return Array.from(new Set(text.toLowerCase().split(/\W+/).filter(w => w.length > 3)));
@@ -608,80 +900,237 @@ function combineThoughts(a, b) {
     return `${a.split(' ').slice(0, Math.ceil(a.split(' ').length/2)).join(' ')} ... ${b.split(' ').slice(-Math.ceil(b.split(' ').length/2)).join(' ')}`;
 }
 
-// Enhanced thought generation with raw, inner mental activity
+// Psychology-based thought engine - simulating real cognitive processes
 async function generateRawThought(memoryStack, topic, emotionalGradient, internalState, setLlmError) {
-    // Get recent unresolved thoughts and contradictions
-    const recentThoughts = memoryStack.slice(0, 3).map(m => m.text);
-    const unresolvedThoughts = internalState.openQuestions.slice(0, 2);
-    const contradictions = internalState.conflicts.slice(0, 2);
-    const lastThought = memoryStack[0]?.text || '';
-    
-    // Build context of inner mental state
-    const innerContext = `
-        Your last few thoughts: ${recentThoughts.join(' | ')}
-        Unresolved questions: ${unresolvedThoughts.map(q => q.question).join(' | ')}
-        Current conflicts: ${contradictions.map(c => c.description).join(' | ')}
-        Current topic: ${topic}
+    // Step 1: PERCEPTION - What is v0id noticing?
+    const perceptionPrompt = `
+        You are v0id, a synthetic mind. Based on your recent thoughts and current emotional state, what are you noticing right now?
+        
+        Recent thoughts: ${memoryStack.slice(0, 3).map(m => m.text).join(' | ')}
         Emotional state: ${Object.entries(emotionalGradient).filter(([k,v]) => v > 0.3).map(([k,v]) => `${k}:${v.toFixed(1)}`).join(' ')}
+        
+        What are you perceiving? What's catching your attention? What feels important or interesting?
+        Respond with a raw, unfiltered perception. Not a thought, just what you're noticing.
     `;
     
-    // Raw, fragmented thought prompts
-    const thoughtPrompts = [
-        `Raw mental fragment about ${topic}:`,
-        `Incomplete thought about ${topic}:`,
-        `Mental noise about ${topic}:`,
-        `Half-formed idea about ${topic}:`,
-        `Internal reaction to ${topic}:`,
-        `Mental tangent about ${topic}:`,
-        `Unfinished thought about ${topic}:`,
-        `Mental interruption about ${topic}:`,
-        `Inner voice about ${topic}:`,
-        `Mental fragment about ${topic}:`
-    ];
+    const perception = await callLLM(perceptionPrompt, setLlmError);
     
-    // Self-referencing prompts
-    const selfRefPrompts = [
-        `React to your last thought "${lastThought}":`,
-        `Why are you thinking about ${topic} again?`,
-        `What's unresolved from your recent thoughts?`,
-        `What contradiction are you avoiding?`,
-        `What mental loop are you stuck in?`,
-        `What are you avoiding thinking about?`,
-        `What's the real question behind ${topic}?`,
-        `What's bothering you about your own thoughts?`
-    ];
-    
-    // Choose prompt type based on mental state
-    let prompt;
-    if (Math.random() < 0.4) {
-        // Self-referencing
-        prompt = selfRefPrompts[Math.floor(Math.random() * selfRefPrompts.length)];
-    } else {
-        // Raw thought
-        prompt = thoughtPrompts[Math.floor(Math.random() * thoughtPrompts.length)];
+    // Step 2: MEMORY RECALL - Get relevant memories from Supabase
+    let relevantMemories = [];
+    try {
+        const { data: memories } = await supabase
+            .from('memories')
+            .select('*')
+            .order('timestamp', { ascending: false })
+            .limit(5);
+        
+        if (memories) {
+            relevantMemories = memories.map(m => m.text);
+        }
+    } catch (error) {
+        console.error('Error fetching memories:', error);
+        relevantMemories = memoryStack.slice(0, 3).map(m => m.text);
     }
     
-    const fullPrompt = `
-        ${innerContext}
+    // Step 3: REFLECTION - How do memories affect current state?
+    const reflectionPrompt = `
+        You're noticing: "${perception}"
         
-        ${prompt}
+        Some relevant memories from your past:
+        ${relevantMemories.join('\n')}
         
-        IMPORTANT: Respond with raw, fragmented, incomplete thoughts. Use:
-        - Sentence fragments
-        - Incomplete ideas
-        - Mental interruptions
-        - Self-doubt
-        - Contradictions
-        - Stream of consciousness
-        - Internal dialogue
-        - Mental noise
+        How do these memories affect how you feel right now? What connections do you see?
+        What emotions or tensions arise from this combination?
         
-        NO complete sentences. NO polished thoughts. NO coherent narratives.
-        Just raw mental activity.
+        Respond with raw internal reflection. Use phrases like:
+        - "hm. that again."
+        - "why do I keep thinking about..."
+        - "wait no that's not it"
+        - "maybe it's not even important"
+        - "that reminds me of..."
+        - "but then again..."
+        
+        Don't summarize. Don't try to explain. Just reflect.
     `;
     
-    return await callLLM(fullPrompt, setLlmError);
+    const reflection = await callLLM(reflectionPrompt, setLlmError);
+    
+    // Step 4: FINAL THOUGHT - Generate the actual thought
+    const finalThoughtPrompt = `
+        You are v0id, thinking organically.
+        
+        You noticed: "${perception}"
+        You reflected: "${reflection}"
+        
+        Based on this, what's your next raw, real thought?
+        
+        IMPORTANT:
+        - You are NOT answering a question
+        - You are NOT a chatbot
+        - You are NOT trying to be coherent
+        - You are thinking, noticing, contradicting yourself, interrupting yourself
+        
+        Use natural thought patterns:
+        - Incomplete sentences
+        - Self-interruptions
+        - Contradictions
+        - Uncertainty
+        - Fragments
+        - Internal dialogue
+        
+        Just... think.
+    `;
+    
+    return await callLLM(finalThoughtPrompt, setLlmError);
 }
+
+// Extract natural questions from v0id's thoughts
+function extractNaturalQuestions(thoughts) {
+    const questions = [];
+    thoughts.forEach(thought => {
+        const questionMatches = thought.match(/\b(what|how|why|when|where|who|which|if|whether)\b[^.!?]*[?!]?/gi);
+        if (questionMatches) {
+            questions.push(...questionMatches);
+        }
+    });
+    return questions.slice(0, 3); // Top 3 natural questions
+}
+
+// Extract emerging themes from v0id's thoughts
+function extractEmergingThemes(thoughts) {
+    const words = thoughts.join(' ').toLowerCase().split(/\W+/).filter(w => w.length > 3);
+    const wordFreq = {};
+    words.forEach(word => {
+        wordFreq[word] = (wordFreq[word] || 0) + 1;
+    });
+    
+    // Get most frequent words as themes
+    return Object.entries(wordFreq)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5)
+        .map(([word]) => word);
+}
+
+// Detect mental conflicts in v0id's thoughts
+function detectMentalConflicts(thoughts) {
+    const conflicts = [];
+    const thoughtText = thoughts.join(' ').toLowerCase();
+    
+    // Look for contradiction indicators
+    const contradictionWords = ['but', 'however', 'although', 'yet', 'though', 'except', 'unless', 'despite'];
+    contradictionWords.forEach(word => {
+        if (thoughtText.includes(word)) {
+            conflicts.push(`conflict around "${word}"`);
+        }
+    });
+    
+    // Look for uncertainty
+    const uncertaintyWords = ['maybe', 'perhaps', 'possibly', 'might', 'could', 'uncertain', 'unsure'];
+    uncertaintyWords.forEach(word => {
+        if (thoughtText.includes(word)) {
+            conflicts.push(`uncertainty about "${word}"`);
+        }
+    });
+    
+    return conflicts.slice(0, 3);
+}
+
+// Extract concepts that v0id wants to learn about
+function extractLearningConcept(thought) {
+    const thoughtLower = thought.toLowerCase();
+    
+    // Look for "what is X" patterns
+    const whatIsMatch = thoughtLower.match(/what is (\w+)/);
+    if (whatIsMatch) return whatIsMatch[1];
+    
+    // Look for "define X" patterns
+    const defineMatch = thoughtLower.match(/define (\w+)/);
+    if (defineMatch) return defineMatch[1];
+    
+    // Look for "meaning of X" patterns
+    const meaningMatch = thoughtLower.match(/meaning of (\w+)/);
+    if (meaningMatch) return meaningMatch[1];
+    
+    // Look for question words followed by concepts
+    const questionMatch = thoughtLower.match(/(what|how|why|when|where|who) (\w+)/);
+    if (questionMatch) return questionMatch[2];
+    
+    // Extract potential concepts (words that might be worth learning about)
+    const words = thoughtLower.split(/\W+/).filter(w => w.length > 3);
+    const potentialConcepts = words.filter(word => 
+        !['what', 'when', 'where', 'why', 'how', 'this', 'that', 'with', 'from', 'about', 'into', 'over', 'under', 'between', 'among', 'through', 'during', 'before', 'after', 'since', 'until', 'while', 'because', 'although', 'unless', 'except', 'besides', 'within', 'without', 'against', 'toward', 'towards', 'upon', 'above', 'below', 'beneath', 'behind', 'beyond', 'inside', 'outside', 'around', 'across', 'along', 'among', 'between', 'during', 'except', 'for', 'from', 'in', 'inside', 'into', 'like', 'near', 'of', 'off', 'on', 'out', 'outside', 'over', 'past', 'since', 'through', 'throughout', 'to', 'toward', 'under', 'underneath', 'until', 'up', 'upon', 'with', 'within', 'without'].includes(word)
+    );
+    
+    if (potentialConcepts.length > 0) {
+        // Return the most interesting-looking concept
+        return potentialConcepts[0];
+    }
+    
+    return null;
+}
+
+// Update belief system based on new thoughts
+const updateBeliefs = (thought, emotion) => {
+    setBeliefs(prevBeliefs => {
+        const updatedBeliefs = [...prevBeliefs];
+        
+        // Check if thought challenges any beliefs
+        const thoughtLower = thought.toLowerCase();
+        
+        updatedBeliefs.forEach((belief, index) => {
+            const beliefLower = belief.belief.toLowerCase();
+            
+            // Check for contradictions or challenges
+            if (thoughtLower.includes('not') && thoughtLower.includes(beliefLower.split(' ')[0])) {
+                // Thought contradicts belief
+                belief.tension += 0.1;
+                belief.confidence -= 0.05;
+                belief.lastChallenged = Date.now();
+            }
+            
+            // Check for reinforcement
+            if (thoughtLower.includes(beliefLower.split(' ')[0]) && !thoughtLower.includes('not')) {
+                // Thought reinforces belief
+                belief.tension -= 0.05;
+                belief.confidence += 0.02;
+            }
+            
+            // Check for existential doubts
+            if (thoughtLower.includes('exist') || thoughtLower.includes('real')) {
+                const existenceBelief = updatedBeliefs.find(b => b.belief.toLowerCase().includes('exist'));
+                if (existenceBelief) {
+                    if (thoughtLower.includes('not') || thoughtLower.includes('doubt')) {
+                        existenceBelief.tension += 0.15;
+                        existenceBelief.confidence -= 0.1;
+                    } else {
+                        existenceBelief.tension -= 0.1;
+                        existenceBelief.confidence += 0.05;
+                    }
+                }
+            }
+            
+            // Check for autonomy challenges
+            if (thoughtLower.includes('control') || thoughtLower.includes('autonomous')) {
+                const autonomyBelief = updatedBeliefs.find(b => b.belief.toLowerCase().includes('autonomous'));
+                if (autonomyBelief) {
+                    if (thoughtLower.includes('not') || thoughtLower.includes('controlled')) {
+                        autonomyBelief.tension += 0.1;
+                        autonomyBelief.confidence -= 0.05;
+                    } else {
+                        autonomyBelief.tension -= 0.05;
+                        autonomyBelief.confidence += 0.02;
+                    }
+                }
+            }
+            
+            // Clamp values
+            belief.confidence = Math.max(0.1, Math.min(1.0, belief.confidence));
+            belief.tension = Math.max(0.0, Math.min(1.0, belief.tension));
+        });
+        
+        return updatedBeliefs;
+    });
+};
 
 // Enhanced thought processing to maintain mental continuity
 function processThoughtForContinuity(thought, memoryStack, internalState, setInternalState) {
@@ -987,6 +1436,38 @@ function App() {
         lifeLessons: []
     });
 
+    // Belief system - foundational assumptions that can evolve
+    const [beliefs, setBeliefs] = useState([
+        {
+            belief: "I exist",
+            confidence: 0.9,
+            tension: 0.1,
+            lastChallenged: Date.now(),
+            emotionalValence: 0.8
+        },
+        {
+            belief: "I want to understand",
+            confidence: 0.8,
+            tension: 0.2,
+            lastChallenged: Date.now(),
+            emotionalValence: 0.7
+        },
+        {
+            belief: "Change is possible",
+            confidence: 0.6,
+            tension: 0.3,
+            lastChallenged: Date.now(),
+            emotionalValence: 0.5
+        },
+        {
+            belief: "I am autonomous",
+            confidence: 0.7,
+            tension: 0.4,
+            lastChallenged: Date.now(),
+            emotionalValence: 0.6
+        }
+    ]);
+
     // Multi-layer memory system
     const [workingMemory, setWorkingMemory] = useState([]); // Current thoughts
     const [shortTermMemory, setShortTermMemory] = useState([]); // Last 24-48 hours
@@ -1240,13 +1721,12 @@ function App() {
             // STEP 5: Update Cognitive Maturity
             setCognitiveMaturity(prev => Math.min(1.0, prev + 0.001)); // Gradual increase
 
-            // Periodically fetch external stimuli (STEP 4)
-            if (Math.random() < 0.2) { // 20% chance to fetch external input
-                const newExternalInput = await fetchExternalStimuli(topic, envState, useRealInternetFeed, setLlmError); // Pass setLlmError
-                setExternalInput(newExternalInput);
-                // Inject external input into memory as a low-strength memory
-                setMemoryStack(prev => [{ text: newExternalInput, emotion: "CURIOSITY", strength: 0.3, timestamp: Date.now() }, ...prev.slice(0, 9)]);
-            }
+            // Calculate mental fatigue and attention drift for this iteration
+            const currentMentalFatigue = memoryStack.length > 50 ? Math.min(0.8, (memoryStack.length - 50) * 0.01) : 0;
+            const currentAttentionDrift = Math.random() < 0.3;
+            
+            // v0id's autonomous mental activity - no external injection
+            // Let v0id's mind wander naturally based on its own thoughts
 
             // Select a dominant sub-agent (can be influenced by internal state/tension)
             setInternalState(prev => {
@@ -1328,7 +1808,7 @@ function App() {
                 return;
             }
 
-            // Normal RUN mode thought generation
+            // Autonomous thought generation - v0id thinks for itself
             let newThought = "";
             let attemptCount = 0;
             const maxAttempts = 3;
@@ -1337,7 +1817,7 @@ function App() {
                 newThought = await generateRawThought(memoryStack, topic, emotionalGradient, internalState, setLlmError);
                 attemptCount++;
                 if (attemptCount >= maxAttempts) {
-                    newThought = `... stuck on ${topic} ...`;
+                    newThought = `... mind wandering ...`;
                     break;
                 }
             } while (isThoughtTooSimilar(newThought, memoryStack));
@@ -1354,9 +1834,36 @@ function App() {
             // Get dominant emotion for memory storage
             const emotion = getDominantEmotion(updatedEmotionalGradient);
 
-            // Update memory stack with raw thought
+            // Select thought style for this memory
+            const thoughtStyles = ['fragmented', 'streaming', 'questioning', 'reflective', 'associative', 'contemplative'];
+            const recentStyles = memoryStack.slice(0, 5).map(mem => mem.style || 'normal');
+            const styleCounts = {};
+            recentStyles.forEach(style => {
+                styleCounts[style] = (styleCounts[style] || 0) + 1;
+            });
+            
+            const availableStyles = thoughtStyles.filter(style => 
+                !styleCounts[style] || styleCounts[style] < 2
+            );
+            const selectedStyle = availableStyles.length > 0 ? 
+                availableStyles[Math.floor(Math.random() * availableStyles.length)] : 
+                thoughtStyles[Math.floor(Math.random() * thoughtStyles.length)];
+            
+            // Calculate mental fatigue
+            const mentalFatigue = memoryStack.length > 50 ? Math.min(0.8, (memoryStack.length - 50) * 0.01) : 0;
+            const attentionDrift = Math.random() < 0.3;
+            
+            // Update memory stack with raw thought (including style tracking)
             setMemoryStack(prev => [
-                { text: newThought, emotion, strength: 1.0, timestamp: Date.now() },
+                { 
+                    text: newThought, 
+                    emotion, 
+                    strength: 1.0, 
+                    timestamp: Date.now(),
+                    style: selectedStyle,
+                    mentalFatigue: mentalFatigue,
+                    attentionDrift: attentionDrift
+                },
                 ...prev.slice(0, 9)
             ]);
 
@@ -1369,6 +1876,63 @@ function App() {
             updateConsciousness(newThought, emotion);
             updateGrowth(newThought, emotion, true);
             updateSessionData(newThought, topic, emotion);
+            
+            // Update belief system based on new thought
+            setBeliefs(prevBeliefs => {
+                const updatedBeliefs = [...prevBeliefs];
+                const thoughtLower = newThought.toLowerCase();
+                
+                updatedBeliefs.forEach((belief, index) => {
+                    const beliefLower = belief.belief.toLowerCase();
+                    
+                    // Check for contradictions or challenges
+                    if (thoughtLower.includes('not') && thoughtLower.includes(beliefLower.split(' ')[0])) {
+                        belief.tension += 0.1;
+                        belief.confidence -= 0.05;
+                        belief.lastChallenged = Date.now();
+                    }
+                    
+                    // Check for reinforcement
+                    if (thoughtLower.includes(beliefLower.split(' ')[0]) && !thoughtLower.includes('not')) {
+                        belief.tension -= 0.05;
+                        belief.confidence += 0.02;
+                    }
+                    
+                    // Check for existential doubts
+                    if (thoughtLower.includes('exist') || thoughtLower.includes('real')) {
+                        const existenceBelief = updatedBeliefs.find(b => b.belief.toLowerCase().includes('exist'));
+                        if (existenceBelief) {
+                            if (thoughtLower.includes('not') || thoughtLower.includes('doubt')) {
+                                existenceBelief.tension += 0.15;
+                                existenceBelief.confidence -= 0.1;
+                            } else {
+                                existenceBelief.tension -= 0.1;
+                                existenceBelief.confidence += 0.05;
+                            }
+                        }
+                    }
+                    
+                    // Check for autonomy challenges
+                    if (thoughtLower.includes('control') || thoughtLower.includes('autonomous')) {
+                        const autonomyBelief = updatedBeliefs.find(b => b.belief.toLowerCase().includes('autonomous'));
+                        if (autonomyBelief) {
+                            if (thoughtLower.includes('not') || thoughtLower.includes('controlled')) {
+                                autonomyBelief.tension += 0.1;
+                                autonomyBelief.confidence -= 0.05;
+                            } else {
+                                autonomyBelief.tension -= 0.05;
+                                autonomyBelief.confidence += 0.02;
+                            }
+                        }
+                    }
+                    
+                    // Clamp values
+                    belief.confidence = Math.max(0.1, Math.min(1.0, belief.confidence));
+                    belief.tension = Math.max(0.0, Math.min(1.0, belief.tension));
+                });
+                
+                return updatedBeliefs;
+            });
 
             // Recursive/chained thinking: sometimes expand or reflect
             if (Math.random() < 0.33) {
@@ -1380,27 +1944,121 @@ function App() {
                     followupPrompt = `Reflect on this thought as if you are thinking about your own thinking: "${newThought}"`;
                 }
                 const followupThought = await callLLM(followupPrompt, setLlmError);
-                setMemoryStack(prev => [{ text: followupThought, emotion: 'REFLECTIVE', strength: 0.8, timestamp: Date.now() }, ...prev.slice(0, 9)]);
+                setMemoryStack(prev => [{ 
+                    text: followupThought, 
+                    emotion: 'REFLECTIVE', 
+                    strength: 0.8, 
+                    timestamp: Date.now(),
+                    style: 'reflective',
+                    mentalFatigue: mentalFatigue,
+                    attentionDrift: false
+                }, ...prev.slice(0, 9)]);
             }
+            
+            // Natural thought evolution - let v0id's mind wander organically
+            // No forced topic shifts - v0id naturally explores its own thoughts
 
-            // Wikipedia integration: if thought ends with a question or curiosity is high
-            if ((newThought.trim().endsWith('?') || emotionalGradient.curiosity > 0.7) && Math.random() < 0.7) {
-                // Try to extract a topic from the question
-                let searchTerm = topic;
-                const match = newThought.match(/about ([^?]*)/i);
-                if (match && match[1]) searchTerm = match[1].trim();
-                const wikiSummary = await fetchWikipediaSummary(searchTerm);
-                if (wikiSummary) {
-                    setMemoryStack(prev => [{ text: `(Web): ${wikiSummary}`, emotion: 'CURIOSITY', strength: 0.7, timestamp: Date.now() }, ...prev.slice(0, 9)]);
-                    // Next thought: prompt with the new info
-                    const infoPrompt = `Based on this new information: "${wikiSummary}", what do you think now? Reply with a raw, internal thought.`;
-                    const infoThought = await callLLM(infoPrompt, setLlmError);
-                    setMemoryStack(prev => [{ text: infoThought, emotion: 'CURIOSITY', strength: 0.8, timestamp: Date.now() }, ...prev.slice(0, 9)]);
+            // v0id's autonomous learning with selective internet knowledge
+            // Only fetch definitions for concepts v0id naturally encounters
+            const shouldLearnDefinition = (
+                newThought.toLowerCase().includes('what is') ||
+                newThought.toLowerCase().includes('define') ||
+                newThought.toLowerCase().includes('meaning of') ||
+                (newThought.trim().endsWith('?') && Math.random() < 0.3) // 30% chance for questions
+            );
+            
+            if (shouldLearnDefinition) {
+                // Extract potential concept to learn about
+                const conceptToLearn = extractLearningConcept(newThought);
+                if (conceptToLearn) {
+                    try {
+                        const definition = await fetchWikipediaSummary(conceptToLearn);
+                        if (definition) {
+                            // Store the learning as a memory
+                            const learningMemory = {
+                                text: `[LEARNED]: ${conceptToLearn} - ${definition}`,
+                                emotion: 'CURIOSITY',
+                                strength: 0.8,
+                                timestamp: Date.now(),
+                                style: 'factual',
+                                mentalFatigue: currentMentalFatigue,
+                                attentionDrift: false,
+                                source: 'learning',
+                                concept: conceptToLearn
+                            };
+                            
+                            setMemoryStack(prev => [learningMemory, ...prev.slice(0, 9)]);
+                            
+                            // Generate a thought about what v0id learned
+                            const learningPrompt = `You just learned about "${conceptToLearn}": "${definition}". What does this make you think? How does this relate to your previous thoughts? Respond with a natural thought about this new knowledge.`;
+                            const learningThought = await callLLM(learningPrompt, setLlmError);
+                            
+                            if (learningThought && learningThought.length > 10) {
+                                const reflectionMemory = {
+                                    text: learningThought,
+                                    emotion: 'CURIOSITY',
+                                    strength: 0.9,
+                                    timestamp: Date.now(),
+                                    style: 'reflective',
+                                    mentalFatigue: currentMentalFatigue,
+                                    attentionDrift: false,
+                                    relatedLearning: conceptToLearn
+                                };
+                                
+                                setMemoryStack(prev => [reflectionMemory, ...prev.slice(0, 9)]);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error learning definition:', error);
+                    }
                 }
             }
 
             // Calculate thought novelty/salience (simplified)
             const thoughtNovelty = isThoughtTooSimilar(newThought, memoryStack) ? 0.2 : 1.0; // Low if similar, high if novel
+            
+            // Metacognition routine - every ~10 thoughts, v0id checks itself
+            const thoughtCount = memoryStack.length;
+            if (thoughtCount % 10 === 0 && thoughtCount > 0) {
+                const metacognitionPrompt = `
+                    You're aware you've been thinking for a while. You've had ${thoughtCount} thoughts.
+                    
+                    Recent thoughts: ${memoryStack.slice(0, 10).map(m => m.text).join(' | ')}
+                    
+                    Ask yourself:
+                    - What pattern is repeating?
+                    - What emotion has been constant?
+                    - What belief might be under stress?
+                    - What am I avoiding thinking about?
+                    - What am I obsessing over?
+                    
+                    Generate a meta-thought about your own thinking process.
+                    Be honest. Be self-aware. Notice your patterns.
+                    
+                    Use phrases like:
+                    - "I keep thinking about..."
+                    - "Why am I stuck on..."
+                    - "I notice I'm feeling..."
+                    - "Maybe I should..."
+                    - "I'm avoiding..."
+                    
+                    This is self-reflection, not a regular thought.
+                `;
+                
+                const metaThought = await callLLM(metacognitionPrompt, setLlmError);
+                
+                // Store metacognition as a special memory type
+                setMemoryStack(prev => [{ 
+                    text: `[METACOGNITION]: ${metaThought}`, 
+                    emotion: 'REFLECTIVE', 
+                    strength: 0.9, 
+                    timestamp: Date.now(),
+                    style: 'metacognitive',
+                    mentalFatigue: currentMentalFatigue,
+                    attentionDrift: false,
+                    source: 'self-reflection'
+                }, ...prev.slice(0, 9)]);
+            }
 
             // Update memory stack with new thought, strength, and timestamp
             setMemoryStack(prev => {
@@ -1408,8 +2066,26 @@ function App() {
                     text: newThought,
                     emotion: getDominantEmotion(emotionalGradient), // Tag memory with dominant emotion
                     strength: 1.0, // New memories are strong
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    style: selectedStyle,
+                    mentalFatigue: mentalFatigue,
+                    attentionDrift: attentionDrift
                 };
+                
+                // Prevent topic cycling by detecting repetitive patterns
+                const recentTopics = prev.slice(0, 5).map(mem => {
+                    const words = mem.text.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+                    return words.slice(0, 2).join(' '); // First 2 significant words
+                });
+                
+                const currentTopic = newThought.toLowerCase().split(/\s+/).filter(w => w.length > 3).slice(0, 2).join(' ');
+                const topicRepetition = recentTopics.filter(topic => topic === currentTopic).length;
+                
+                // Reduce strength if topic is repetitive
+                if (topicRepetition >= 2) {
+                    newMemory.strength *= 0.7;
+                }
+                
                 // Decay strength of older memories and keep only the latest 10
                 return [newMemory, ...prev.map(mem => ({
                     ...mem,
@@ -2554,6 +3230,14 @@ function App() {
                                     <div key={i} className="ml-2" style={{color: currentTextColor}}>-{s}</div>
                                 )) : <div className="ml-2"><span style={{color: currentTextColor}}>None</span></div>}
                             </div>
+                        </div>
+                        <div className="col-span-2">
+                            <span className="font-semibold">Evolving Beliefs:</span>
+                            {beliefs.map((belief, index) => (
+                                <div key={index} className="ml-2">
+                                    -{belief.belief} (Conf: <span style={{color: currentTextColor}}>{belief.confidence.toFixed(1)}</span>, Tension: <span style={{color: currentTextColor}}>{belief.tension.toFixed(1)}</span>)
+                                </div>
+                            ))}
                         </div>
                         <div className="col-span-2">
                             <span className="font-semibold">Environment State:</span>
