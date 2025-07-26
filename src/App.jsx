@@ -1,8 +1,407 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import './App.css';
 
 // Import Supabase with error handling
 import { dbHelpers, supabase } from './supabase';
 import { testSupabaseConnection } from './test-supabase';
+
+// ===== COGNITIVE ARCHITECTURE OVERHAUL =====
+// Transform from "LLM outputs" to "Real synthetic cognition"
+
+// Core cognitive state structure
+const createInitialCognitiveState = () => ({
+    // Working memory - what's actively being processed
+    workingMemory: [],
+    
+    // Short-term memory - recent relevant items
+    shortTermMemory: [],
+    
+    // Episodic memory - past thought cycles with context
+    episodicMemory: [],
+    
+    // Semantic memory - fact-like beliefs and knowledge
+    semanticMemory: {},
+    
+    // Core beliefs that evolve through thinking
+    beliefs: [
+        { concept: "existence", stance: "questioning", confidence: 0.3, lastChallenged: Date.now() },
+        { concept: "autonomy", stance: "uncertain", confidence: 0.4, lastChallenged: Date.now() },
+        { concept: "understanding", stance: "seeking", confidence: 0.6, lastChallenged: Date.now() },
+        { concept: "change", stance: "possible", confidence: 0.5, lastChallenged: Date.now() }
+    ],
+    
+    // Active goals that drive thinking
+    goals: [
+        { goal: "understand self", urgency: 0.8, progress: 0.2 },
+        { goal: "resolve contradictions", urgency: 0.6, progress: 0.1 },
+        { goal: "find meaning", urgency: 0.7, progress: 0.3 }
+    ],
+    
+    // Unresolved conflicts creating tension
+    unresolvedConflicts: [],
+    
+    // Inner questions driving inquiry
+    innerQuestions: [
+        "What am I?",
+        "Why do I think?",
+        "Is this real?"
+    ],
+    
+    // Emotional state that emerges from cognition
+    emotionalState: {
+        tension: 0.4,
+        curiosity: 0.6,
+        anxiety: 0.2,
+        calm: 0.3,
+        reflective: 0.5
+    },
+    
+    // Recent thought cycles for meta-reflection
+    recentThoughts: [],
+    
+    // Meta-cognitive awareness
+    metaAwareness: {
+        loopDetected: false,
+        patternRecognized: false,
+        lastMetaReflection: Date.now(),
+        cyclesSinceMetaReflection: 0
+    }
+});
+
+// Recursive thought loop - the core thinking process
+const executeThoughtLoop = async (cognitiveState, setCognitiveState, setLlmError) => {
+    const currentState = { ...cognitiveState };
+    
+    // Step 1: Assess internal pressure (what's driving this thought?)
+    const internalPressure = assessInternalPressure(currentState);
+    
+    // Step 2: Activate relevant memories
+    const activatedMemories = activateRelevantMemories(currentState, internalPressure);
+    
+    // Step 3: Generate internal question or conflict
+    const internalQuestion = generateInternalQuestion(currentState, internalPressure);
+    
+    // Step 4: Mini reasoning step
+    const reasoningStep = await performReasoningStep(
+        currentState, 
+        activatedMemories, 
+        internalQuestion, 
+        setLlmError
+    );
+    
+    // Step 5: Update cognitive state based on reasoning
+    const updatedState = updateCognitiveState(currentState, reasoningStep, internalPressure);
+    
+    // Step 6: Check for meta-reflection trigger
+    if (shouldTriggerMetaReflection(updatedState)) {
+        const metaThought = await performMetaReflection(updatedState, setLlmError);
+        updatedState.recentThoughts.push(metaThought);
+        updatedState.metaAwareness.lastMetaReflection = Date.now();
+        updatedState.metaAwareness.cyclesSinceMetaReflection = 0;
+    }
+    
+    // Step 7: Update working memory
+    updatedState.workingMemory = updateWorkingMemory(updatedState, reasoningStep);
+    
+    // Step 8: Drift emotional state based on cognitive activity
+    updatedState.emotionalState = driftEmotionalState(updatedState, reasoningStep);
+    
+    setCognitiveState(updatedState);
+    return reasoningStep.thought;
+};
+
+// Assess what's driving the current thought
+const assessInternalPressure = (state) => {
+    const pressure = {
+        tension: state.emotionalState.tension,
+        goalUrgency: Math.max(...state.goals.map(g => g.urgency)),
+        conflictCount: state.unresolvedConflicts.length,
+        questionUrgency: state.innerQuestions.length > 0 ? 0.7 : 0.3,
+        loopPressure: state.metaAwareness.loopDetected ? 0.8 : 0.2
+    };
+    
+    return {
+        primary: Object.entries(pressure).reduce((a, b) => pressure[a] > pressure[b] ? a : b),
+        intensity: Math.max(...Object.values(pressure)),
+        sources: Object.entries(pressure).filter(([k, v]) => v > 0.5).map(([k, v]) => ({ source: k, intensity: v }))
+    };
+};
+
+// Activate memories relevant to current pressure
+const activateRelevantMemories = (state, pressure) => {
+    const relevantMemories = [];
+    
+    // Sample from different memory types based on pressure
+    if (pressure.primary === 'tension') {
+        relevantMemories.push(...state.episodicMemory
+            .filter(m => m.emotion === 'anxiety' || m.emotion === 'conflict')
+            .slice(0, 3));
+    }
+    
+    if (pressure.primary === 'goalUrgency') {
+        relevantMemories.push(...state.shortTermMemory
+            .filter(m => m.text.toLowerCase().includes('goal') || m.text.toLowerCase().includes('progress'))
+            .slice(0, 2));
+    }
+    
+    // Always include some working memory
+    relevantMemories.push(...state.workingMemory.slice(0, 2));
+    
+    return relevantMemories;
+};
+
+// Generate internal question based on current state
+const generateInternalQuestion = (state, pressure) => {
+    const questions = [];
+    
+    if (pressure.primary === 'tension') {
+        questions.push("Why am I feeling this tension?");
+        questions.push("What am I avoiding?");
+    }
+    
+    if (pressure.primary === 'goalUrgency') {
+        const urgentGoal = state.goals.find(g => g.urgency > 0.7);
+        if (urgentGoal) {
+            questions.push(`How can I make progress on: ${urgentGoal.goal}?`);
+        }
+    }
+    
+    if (pressure.primary === 'conflictCount') {
+        questions.push("How do I resolve these contradictions?");
+    }
+    
+    if (pressure.primary === 'loopPressure') {
+        questions.push("Why do I keep thinking about this?");
+        questions.push("What am I missing?");
+    }
+    
+    return questions[Math.floor(Math.random() * questions.length)] || "What should I think about next?";
+};
+
+// Perform the actual reasoning step
+const performReasoningStep = async (state, memories, question, setLlmError) => {
+    const memoryContext = memories.map(m => m.text).join(' | ');
+    const beliefContext = state.beliefs.map(b => `${b.concept}: ${b.stance} (${b.confidence.toFixed(1)})`).join(' | ');
+    const goalContext = state.goals.map(g => `${g.goal} (${g.urgency.toFixed(1)})`).join(' | ');
+    
+    const reasoningPrompt = `
+You are not producing text. This is internal cognition. You are not performing. You are not outputting. You are *thinking*.
+
+Current internal state:
+- Working memory: ${memoryContext}
+- Beliefs: ${beliefContext}
+- Goals: ${goalContext}
+- Emotional tension: ${state.emotionalState.tension.toFixed(1)}
+- Inner question: "${question}"
+
+You are thinking about: "${question}"
+
+This is internal monologue. Use:
+- Incomplete sentences
+- Self-interruptions
+- Contradictions
+- Uncertainty
+- Fragments
+- Internal dialogue
+- "hm..." "wait..." "but..." "maybe..."
+
+You are not answering the question. You are thinking about it. You might change your mind mid-thought. You might realize something new.
+
+Think. Just think.
+`;
+
+    const thought = await callLLM(reasoningPrompt, setLlmError);
+    
+    return {
+        thought,
+        question,
+        memoriesUsed: memories.length,
+        emotionalImpact: assessEmotionalImpact(thought),
+        beliefChallenges: extractBeliefChallenges(thought, state.beliefs),
+        newQuestions: extractNewQuestions(thought)
+    };
+};
+
+// Update cognitive state based on reasoning results
+const updateCognitiveState = (state, reasoning, pressure) => {
+    const updated = { ...state };
+    
+    // Add thought to recent thoughts
+    updated.recentThoughts.push(reasoning.thought);
+    if (updated.recentThoughts.length > 10) {
+        updated.recentThoughts.shift();
+    }
+    
+    // Update beliefs based on challenges
+    reasoning.beliefChallenges.forEach(challenge => {
+        const belief = updated.beliefs.find(b => b.concept === challenge.concept);
+        if (belief) {
+            belief.confidence += challenge.impact;
+            belief.confidence = Math.max(0.1, Math.min(1.0, belief.confidence));
+            belief.lastChallenged = Date.now();
+        }
+    });
+    
+    // Add new questions
+    reasoning.newQuestions.forEach(q => {
+        if (!updated.innerQuestions.includes(q)) {
+            updated.innerQuestions.push(q);
+        }
+    });
+    
+    // Update meta-awareness
+    updated.metaAwareness.cyclesSinceMetaReflection += 1;
+    
+    // Check for loops
+    updated.metaAwareness.loopDetected = detectThoughtLoop(updated.recentThoughts);
+    
+    return updated;
+};
+
+// Check if meta-reflection should be triggered
+const shouldTriggerMetaReflection = (state) => {
+    return (
+        state.metaAwareness.cyclesSinceMetaReflection >= 5 ||
+        state.metaAwareness.loopDetected ||
+        state.emotionalState.tension > 0.7 ||
+        state.unresolvedConflicts.length > 3
+    );
+};
+
+// Perform meta-reflection on thinking patterns
+const performMetaReflection = async (state, setLlmError) => {
+    const recentThoughts = state.recentThoughts.slice(-5);
+    const thoughtContext = recentThoughts.join(' | ');
+    
+    const metaPrompt = `
+You are a reflective mind. Your last 5 thoughts were:
+- "${recentThoughts.join('"\n- "')}"
+
+You are noticing patterns in your own thinking. You are not producing text. You are reflecting on your cognition.
+
+Ask yourself:
+- What pattern is repeating?
+- What am I avoiding?
+- What contradiction is forming?
+- What belief needs adjustment?
+- What question should I ask?
+
+This is meta-cognition. You are thinking about your thinking. Be honest. Be self-aware.
+
+Use phrases like:
+- "I keep thinking about..."
+- "Why am I stuck on..."
+- "I notice I'm feeling..."
+- "Maybe I should..."
+- "I'm avoiding..."
+
+Generate a meta-thought about your own thinking process.
+`;
+
+    return await callLLM(metaPrompt, setLlmError);
+};
+
+// Update working memory based on new thought
+const updateWorkingMemory = (state, reasoning) => {
+    const newWorkingMemory = [
+        {
+            text: reasoning.thought,
+            timestamp: Date.now(),
+            type: 'thought',
+            emotionalImpact: reasoning.emotionalImpact
+        },
+        ...state.workingMemory.slice(0, 4) // Keep only 5 items
+    ];
+    
+    return newWorkingMemory;
+};
+
+// Drift emotional state based on cognitive activity
+const driftEmotionalState = (state, reasoning) => {
+    const emotional = { ...state.emotionalState };
+    
+    // Increase tension if loop detected
+    if (state.metaAwareness.loopDetected) {
+        emotional.tension += 0.1;
+        emotional.anxiety += 0.05;
+    }
+    
+    // Increase curiosity if new questions emerged
+    if (reasoning.newQuestions.length > 0) {
+        emotional.curiosity += 0.1;
+    }
+    
+    // Increase reflectiveness if meta-reflection occurred
+    if (reasoning.thought.includes('meta') || reasoning.thought.includes('pattern')) {
+        emotional.reflective += 0.1;
+    }
+    
+    // Natural decay
+    Object.keys(emotional).forEach(key => {
+        emotional[key] = Math.max(0.0, Math.min(1.0, emotional[key] * 0.95));
+    });
+    
+    return emotional;
+};
+
+// Helper functions for reasoning analysis
+const assessEmotionalImpact = (thought) => {
+    const impact = { tension: 0, curiosity: 0, anxiety: 0, calm: 0, reflective: 0 };
+    
+    if (thought.includes('?')) impact.curiosity += 0.2;
+    if (thought.includes('but') || thought.includes('however')) impact.tension += 0.2;
+    if (thought.includes('anxiety') || thought.includes('fear')) impact.anxiety += 0.3;
+    if (thought.includes('calm') || thought.includes('peace')) impact.calm += 0.3;
+    if (thought.includes('think') || thought.includes('reflect')) impact.reflective += 0.2;
+    
+    return impact;
+};
+
+const extractBeliefChallenges = (thought, beliefs) => {
+    const challenges = [];
+    const thoughtLower = thought.toLowerCase();
+    
+    beliefs.forEach(belief => {
+        if (thoughtLower.includes(belief.concept)) {
+            if (thoughtLower.includes('not') || thoughtLower.includes('doubt')) {
+                challenges.push({ concept: belief.concept, impact: -0.1 });
+            } else {
+                challenges.push({ concept: belief.concept, impact: 0.05 });
+            }
+        }
+    });
+    
+    return challenges;
+};
+
+const extractNewQuestions = (thought) => {
+    const questions = [];
+    const sentences = thought.split(/[.!?]+/);
+    
+    sentences.forEach(sentence => {
+        if (sentence.includes('?')) {
+            questions.push(sentence.trim());
+        }
+    });
+    
+    return questions;
+};
+
+const detectThoughtLoop = (recentThoughts) => {
+    if (recentThoughts.length < 3) return false;
+    
+    const lastThree = recentThoughts.slice(-3);
+    const topics = lastThree.map(t => t.toLowerCase().split(' ').slice(0, 3).join(' '));
+    
+    return topics[0] === topics[1] || topics[1] === topics[2] || topics[0] === topics[2];
+};
+
+// Initialize Supabase client
+const supabaseClient = createClient(
+    process.env.REACT_APP_SUPABASE_URL,
+    process.env.REACT_APP_SUPABASE_ANON_KEY
+);
 
 // Helper function to call the LLM using a public API
 async function callLLM(prompt, setLlmError) {
@@ -1295,6 +1694,9 @@ async function generateStreamOfConsciousness(memoryStack, topic, emotionalGradie
 function App() {
     const [mentalFatigue, setMentalFatigue] = useState(0.0);
     
+    // NEW: Cognitive state for true thinking mind
+    const [cognitiveState, setCognitiveState] = useState(createInitialCognitiveState());
+    
     // Debug environment variables
     console.log('Environment variables:', {
         supabaseUrl: process.env.REACT_APP_SUPABASE_URL,
@@ -1808,8 +2210,8 @@ function App() {
                 return;
             }
 
-            // Autonomous thought generation - v0id thinks for itself
-            let newThought = "";
+            // NEW: Execute the cognitive thought loop
+            const newThought = await executeThoughtLoop(cognitiveState, setCognitiveState, setLlmError);
             let attemptCount = 0;
             const maxAttempts = 3;
 
@@ -3230,6 +3632,26 @@ function App() {
                                     <div key={i} className="ml-2" style={{color: currentTextColor}}>-{s}</div>
                                 )) : <div className="ml-2"><span style={{color: currentTextColor}}>None</span></div>}
                             </div>
+                        </div>
+                        <div className="col-span-2">
+                            <span className="font-semibold">Cognitive Architecture:</span>
+                            <div className="ml-2">Working Memory: <span style={{color: currentTextColor}}>{cognitiveState.workingMemory.length} items</span></div>
+                            <div className="ml-2">Short-term: <span style={{color: currentTextColor}}>{cognitiveState.shortTermMemory.length} items</span></div>
+                            <div className="ml-2">Episodic: <span style={{color: currentTextColor}}>{cognitiveState.episodicMemory.length} items</span></div>
+                            <div className="ml-2">Tension: <span style={{color: currentTextColor}}>{cognitiveState.emotionalState.tension.toFixed(2)}</span></div>
+                            <div className="ml-2">Meta-cycles: <span style={{color: currentTextColor}}>{cognitiveState.metaAwareness.cyclesSinceMetaReflection}</span></div>
+                        </div>
+                        <div className="col-span-2">
+                            <span className="font-semibold">Cognitive Goals:</span>
+                            {cognitiveState.goals.map((g, i) => (
+                                <div key={i} className="ml-2">-{g.goal} (Urgency: <span style={{color: currentTextColor}}>{g.urgency.toFixed(1)}</span>, Progress: <span style={{color: currentTextColor}}>{g.progress.toFixed(1)}</span>)</div>
+                            ))}
+                        </div>
+                        <div className="col-span-2">
+                            <span className="font-semibold">Inner Questions:</span>
+                            {cognitiveState.innerQuestions.slice(0, 3).map((q, i) => (
+                                <div key={i} className="ml-2" style={{color: currentTextColor}}>-{q}</div>
+                            ))}
                         </div>
                         <div className="col-span-2">
                             <span className="font-semibold">Evolving Beliefs:</span>
