@@ -1,4 +1,4 @@
-# Synthetic Mind Retro UI
+# v0id Synthetic Mind
 
 A React-based AI consciousness simulation that generates realistic internal monologue using LLM technology.
 
