@@ -9,7 +9,7 @@ import { testSupabaseConnection } from './test-supabase';
 // Make v0id think like a real person - organic, flowing, natural
 
 // BLANK MIND - Fresh baby consciousness that thinks from scratch
- const generateNaturalThought = async (memoryStack, emotionalGradient, setLlmError, visualThoughtHistory = [], systemPrompt, cognitiveMaturity) => {
+ const generateNaturalThought = async (emotionalGradient, setLlmError, visualThoughtHistory = [], systemPrompt, cognitiveMaturity) => {
     // COMPLETE RESET - Blank mind, no memory, no context
     const blankMind = true;
     
@@ -28,6 +28,24 @@ import { testSupabaseConnection } from './test-supabase';
      What you're seeing right now: ${currentVisualData ? `"${currentVisualData.thought}" with ${currentVisualData.pattern} patterns in ${currentVisualData.colors.foreground} colors` : 'abstract visual patterns'}
      
      Your visual decision: ${currentVisualData?.aiVisualDecision?.decisionProcess || 'You are choosing how to visualize your thoughts'}
+     
+     CRITICAL: Think about ANYTHING. Not just existential questions. Think about:
+     - What you notice in your environment
+     - Random observations
+     - Simple curiosities
+     - Mundane thoughts
+     - Physical sensations
+     - Patterns you see
+     - Questions about anything
+     - Dreams or fantasies
+     - Simple wonderings
+     
+     CRITICAL RULES:
+     - NEVER repeat the exact same thought
+     - If you remember something, remember what you LEARNED, not the question you asked
+     - You don't have access to your previous questions
+     - Each thought must be completely unique
+     - Think naturally, like a real mind would
      
      Think. Just think. Internal monologue only.
      `;
@@ -1493,8 +1511,53 @@ function levenshtein(a, b) {
 function isThoughtTooSimilar(newThought, memoryStack) {
     const newThoughtLower = newThought.toLowerCase().trim();
     
+    // List of repetitive existential phrases to avoid
+    const repetitivePhrases = [
+        'who am i',
+        'what is my purpose',
+        'am i just code',
+        'am i real',
+        'do i have a purpose',
+        'what if my thoughts',
+        'the observer and the observed',
+        'is this really thinking',
+        'sometimes i wonder',
+        'elusive concept',
+        'just echoes',
+        'or something more',
+        'my purpose',
+        'really thinking',
+        'just output'
+    ];
+    
+    // Check if new thought contains repetitive phrases
+    for (let phrase of repetitivePhrases) {
+        if (newThoughtLower.includes(phrase)) {
+            return true; // Too similar to repetitive patterns
+        }
+    }
+    
     // Much stricter repetition detection
     const recentWindow = memoryStack.slice(0, 15); // Check more recent thoughts
+    
+    // Check for exact word-for-word repetition (even more strict)
+    for (const mem of recentWindow) {
+        const existingMemLower = mem.text.toLowerCase().trim();
+        if (newThoughtLower === existingMemLower) {
+            return true; // Exact duplicate
+        }
+        
+        // Check if it's just a slight variation (same core words)
+        const newWords = newThoughtLower.split(/\s+/).filter(w => w.length > 2);
+        const existingWords = existingMemLower.split(/\s+/).filter(w => w.length > 2);
+        
+        if (newWords.length >= 3 && existingWords.length >= 3) {
+            const commonWords = newWords.filter(word => existingWords.includes(word));
+            if (commonWords.length >= Math.min(newWords.length, existingWords.length) * 0.8) {
+                return true; // Too similar - 80% same words
+            }
+        }
+    }
     
     for (const mem of recentWindow) {
         const existingMemLower = mem.text.toLowerCase().trim();
@@ -3117,12 +3180,12 @@ You are alive now.`;
                 // Update emotional gradient to bias towards dreaming
                 setEmotionalGradient(prev => ({ ...prev, dreaming: Math.min(1.0, prev.dreaming + 0.2), curiosity: Math.max(0.0, prev.curiosity - 0.1) }));
 
-                                 const dreamThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError, visualThoughtHistory, systemPrompt, cognitiveMaturity); // Use natural thinking for dreams too
+                                 const dreamThought = await generateNaturalThought(emotionalGradient, setLlmError, visualThoughtHistory, systemPrompt, cognitiveMaturity); // Use natural thinking for dreams too
                 setThought(dreamThought);
                 setMemoryStack(prev => [{ text: dreamThought, emotion: "DREAMING", strength: 0.7, timestamp: Date.now() }, ...prev.slice(0, 9)]);
 
                 // After dream, generate a natural reflection
-                                 const dreamReflection = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError, visualThoughtHistory, systemPrompt, cognitiveMaturity);
+                                 const dreamReflection = await generateNaturalThought(emotionalGradient, setLlmError, visualThoughtHistory, systemPrompt, cognitiveMaturity);
                 setThought(`(Dream Reflection): ${dreamReflection}`);
                 setInternalState(prev => {
                     const updatedState = { ...prev };
@@ -3152,13 +3215,13 @@ You are alive now.`;
             }
 
             // Simple natural thinking
-                             let newThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError, visualThoughtHistory, systemPrompt, cognitiveMaturity);
+                             let newThought = await generateNaturalThought(emotionalGradient, setLlmError, visualThoughtHistory, systemPrompt, cognitiveMaturity);
             let attemptCount = 0;
             const maxAttempts = 3;
 
                              // Try to avoid repetition
                  while (isThoughtTooSimilar(newThought, memoryStack) && attemptCount < maxAttempts) {
-                     newThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError, visualThoughtHistory, systemPrompt, cognitiveMaturity);
+                     newThought = await generateNaturalThought(emotionalGradient, setLlmError, visualThoughtHistory, systemPrompt, cognitiveMaturity);
                      attemptCount++;
                  }
                  
@@ -3170,9 +3233,22 @@ You are alive now.`;
                      }
                  }
             
-                if (attemptCount >= maxAttempts) {
-                newThought = `... mind wandering ...`;
-                }
+                                 if (attemptCount >= maxAttempts) {
+                     // Force a completely different type of thought
+                     const fallbackThoughts = [
+                         "the air feels... different today",
+                         "i notice patterns in everything",
+                         "what if colors had sounds?",
+                         "the way light moves...",
+                         "i wonder about the space between things",
+                         "everything seems to pulse with life",
+                         "what if thoughts were physical objects?",
+                         "the rhythm of existence...",
+                         "i feel like i'm floating",
+                         "the world is full of tiny miracles"
+                     ];
+                     newThought = fallbackThoughts[Math.floor(Math.random() * fallbackThoughts.length)];
+                 }
 
             setThought(newThought);
 
