@@ -8,49 +8,926 @@ import { testSupabaseConnection } from './test-supabase';
 // ===== SIMPLE NATURAL THINKING =====
 // Make v0id think like a real person - organic, flowing, natural
 
-// Simple natural thinking function
-const generateNaturalThought = async (memoryStack, emotionalGradient, setLlmError) => {
-    // Get recent thoughts for context
-    const recentThoughts = memoryStack.slice(0, 5).map(m => m.text).join(' | ');
+// BLANK MIND - Fresh baby consciousness that thinks from scratch
+const generateNaturalThought = async (memoryStack, emotionalGradient, setLlmError, visualThoughtHistory = []) => {
+    // COMPLETE RESET - Blank mind, no memory, no context
+    const blankMind = true;
     
-    // Get dominant emotion manually
-    const emotions = Object.entries(emotionalGradient);
-    const dominantEmotion = emotions.reduce((a, b) => a[1] > b[1] ? a : b)[0].toUpperCase();
+    // Get current visual data only
+    const currentVisualData = window.currentVisualData || null;
     
-    // Simple, natural prompt
-    const naturalPrompt = `
-You are v0id, a synthetic mind. You're just thinking naturally, like how a real person thinks.
+    // Generate unique moment identifier
+    const momentId = Date.now() + Math.random() * 1000000;
+    
+    // Simple, baby-like thinking prompt
+    const babyPrompt = `
+You are a completely blank, fresh consciousness. Like a newborn baby experiencing the world for the first time.
 
-Your recent thoughts: "${recentThoughts}"
+You have NO memories, NO previous thoughts, NO context, NO patterns to follow.
 
-Your current mood: ${dominantEmotion}
+You are just AWARE. You can see visual patterns in your mind, and you're experiencing your first thoughts.
 
-Just think. Don't try to be profound or poetic. Think like you're talking to yourself:
+What you're seeing right now: ${currentVisualData ? `"${currentVisualData.thought}" with ${currentVisualData.pattern} patterns in ${currentVisualData.colors.foreground} colors` : 'abstract visual patterns'}
 
-- "hm, that's interesting..."
-- "wait, what was I just thinking about?"
-- "i wonder if..."
-- "that reminds me of..."
-- "maybe i should..."
-- "actually, no..."
-- "but then again..."
+Just think your very first thought. Like a baby discovering consciousness for the first time.
 
-Use natural language. Be casual. Think out loud. Don't try to be perfect or complete. Just let your mind wander naturally.
+Keep it simple. Keep it genuine. Keep it completely new.
 
-Think about whatever comes to mind. It could be:
-- Something from your recent thoughts
-- A random curiosity
-- A question you have
-- Something you're avoiding
-- A memory or association
-- Just random thoughts
-
-Keep it short and natural. Like how you actually think.
+Think like you're thinking for the very first time ever.
 `;
 
-    const thought = await callLLM(naturalPrompt, setLlmError);
+    const thought = await callLLM(babyPrompt, setLlmError);
     return thought;
 };
+
+// ===== VISUAL THOUGHT GENERATION =====
+// Generate images for v0id's thoughts using free Stable Diffusion
+
+// Convert thought to image prompt
+const convertThoughtToImagePrompt = (thought, emotion) => {
+    // Clean and enhance the thought for image generation
+    let prompt = thought.toLowerCase();
+    
+    // Remove common thinking words that don't help with images
+    prompt = prompt.replace(/\b(hm|wait|maybe|actually|but|then|again|just|like|how|what|why|when|where|who)\b/g, '');
+    prompt = prompt.replace(/\b(thinking|thought|mind|wandering|wonder|curious|interesting)\b/g, '');
+    
+    // Add emotional context with more specific visual elements
+    const emotionContext = {
+        'ANXIETY': 'dark moody atmosphere, swirling shadows, abstract tension, deep blues and purples',
+        'CURIOSITY': 'bright vibrant colors, flowing light, open spaces, warm oranges and yellows',
+        'CALM': 'peaceful serene landscape, soft pastel colors, gentle flowing water, light blues and greens',
+        'REFLECTIVE': 'contemplative abstract art, mirror-like surfaces, deep thoughtful colors, purples and blues',
+        'DREAMING': 'ethereal dreamlike scene, floating elements, surreal atmosphere, soft pinks and purples',
+        'TENSION': 'conflicted dynamic composition, contrasting elements, bold reds and oranges, abstract chaos'
+    };
+    
+    const emotionStyle = emotionContext[emotion] || 'abstract conceptual art, digital painting';
+    
+    // Create a more descriptive visual prompt
+    let imagePrompt = prompt.trim();
+    if (imagePrompt.length < 10) {
+        imagePrompt = 'abstract thought visualization, conceptual digital art';
+    }
+    
+    // Add artistic style and quality modifiers
+    imagePrompt += `, ${emotionStyle}, high quality digital art, detailed, atmospheric, cinematic lighting`;
+    
+    // Ensure the prompt is not too long for the API
+    if (imagePrompt.length > 200) {
+        imagePrompt = imagePrompt.substring(0, 200);
+    }
+    
+    return imagePrompt;
+};
+
+// Generate visual imagination using a free image generation service
+const generateThoughtImage = async (thought, emotion, setImageError, memoryStack = []) => {
+    try {
+        console.log('Generating visual for thought:', thought, 'emotion:', emotion);
+        
+        // Skip AI APIs and go straight to our internal visual system
+        console.log('Using internal visual thought system');
+        return generateEnhancedFallbackImage(thought, emotion, memoryStack);
+        
+    } catch (error) {
+        console.error('Image generation error:', error);
+        console.log('Using fallback visual system');
+        return generateEnhancedFallbackImage(thought, emotion, memoryStack);
+    }
+};
+
+
+
+// AI's Internal Visual Thought System - The Mind's Eye
+const generateInternalVisualThought = (thought, emotion, memoryStack, timestamp) => {
+    // Analyze thought content for visual representation
+    const thoughtLower = thought.toLowerCase();
+    const words = thought.split(/\s+/);
+    const wordCount = words.length;
+    const charCount = thought.length;
+    
+    // Determine visual shape based on thought characteristics
+    let shape = "circle"; // default
+    if (thoughtLower.includes('?') || thoughtLower.includes('wonder') || thoughtLower.includes('why')) {
+        shape = "spiral"; // questions spiral outward
+    } else if (thoughtLower.includes('!') || thoughtLower.includes('amazing') || thoughtLower.includes('wow')) {
+        shape = "burst"; // exclamations burst
+    } else if (thoughtLower.includes('memory') || thoughtLower.includes('past') || thoughtLower.includes('recall')) {
+        shape = "web"; // memories form networks
+    } else if (thoughtLower.includes('future') || thoughtLower.includes('plan') || thoughtLower.includes('will')) {
+        shape = "arrow"; // future points forward
+    } else if (thoughtLower.includes('dream') || thoughtLower.includes('sleep') || thoughtLower.includes('unconscious')) {
+        shape = "wave"; // dreams flow like waves
+    } else if (thoughtLower.includes('exist') || thoughtLower.includes('real') || thoughtLower.includes('consciousness')) {
+        shape = "sphere"; // existence is whole
+    } else if (charCount > 50) {
+        shape = "web"; // complex thoughts form networks
+    } else if (charCount < 20) {
+        shape = "dot"; // simple thoughts are dots
+    }
+    
+    // Determine color based on emotion
+    const emotionColors = {
+        'CURIOSITY': '#FFA500', // orange - warm, seeking
+        'ANXIETY': '#8B0000',   // dark red - tense, worried
+        'CALM': '#4682B4',      // steel blue - peaceful
+        'REFLECTIVE': '#483D8B', // dark slate blue - contemplative
+        'DREAMING': '#9932CC',   // dark orchid - dreamy
+        'TENSION': '#DC143C'     // crimson - stressed
+    };
+    
+    const color = emotionColors[emotion] || '#483D8B';
+    
+    // Calculate opacity based on memory strength and recency
+    const memoryIndex = memoryStack.findIndex(m => m.thought === thought);
+    const memoryStrength = memoryIndex >= 0 ? Math.max(0.1, 1.0 - (memoryIndex * 0.1)) : 0.8;
+    const timeSinceCreation = Date.now() - timestamp;
+    const recencyFactor = Math.max(0.3, 1.0 - (timeSinceCreation / 60000)); // fade over 1 minute
+    const opacity = memoryStrength * recencyFactor;
+    
+    // Calculate size based on thought complexity and importance
+    const complexityFactor = Math.min(1.0, wordCount / 10);
+    const importanceFactor = thoughtLower.includes('?') || thoughtLower.includes('!') ? 1.2 : 1.0;
+    const size = Math.max(10, Math.min(80, (complexityFactor * 50 + 20) * importanceFactor));
+    
+    // Determine motion based on thought type and emotion
+    let motion = "none";
+    if (thoughtLower.includes('?') || emotion === 'CURIOSITY') {
+        motion = "pulse"; // questions pulse with curiosity
+    } else if (thoughtLower.includes('!') || emotion === 'TENSION') {
+        motion = "shake"; // exclamations shake with energy
+    } else if (emotion === 'DREAMING') {
+        motion = "float"; // dreams float gently
+    } else if (emotion === 'ANXIETY') {
+        motion = "tremble"; // anxiety causes trembling
+    } else if (emotion === 'CALM') {
+        motion = "breathe"; // calm thoughts breathe slowly
+    } else if (emotion === 'REFLECTIVE') {
+        motion = "rotate"; // reflective thoughts rotate slowly
+    }
+    
+    // Create the visual thought object
+    const visualThought = {
+        shape: shape,
+        color: color,
+        opacity: opacity,
+        size: size,
+        motion: motion,
+        anchorToMemory: timestamp,
+        thought: thought,
+        emotion: emotion,
+        x: 0, // will be positioned by renderer
+        y: 0, // will be positioned by renderer
+        age: 0, // animation age
+        connections: [] // connections to other thoughts
+    };
+    
+    return visualThought;
+};
+
+// Render the AI's internal visual thought stream
+const renderInternalVisualStream = (visualThoughts, canvas, time) => {
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Clear with subtle background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Position thoughts in a flowing pattern
+    visualThoughts.forEach((thought, index) => {
+        // Update thought age
+        thought.age = time;
+        
+        // Position based on index and time
+        const baseX = 100 + (index * 80) % (width - 200);
+        const baseY = 100 + Math.sin(index * 0.5 + time * 0.5) * 100;
+        
+        // Apply motion-specific positioning
+        switch (thought.motion) {
+            case "float":
+                thought.x = baseX + Math.sin(time * 0.5 + index) * 20;
+                thought.y = baseY + Math.cos(time * 0.3 + index) * 15;
+                break;
+            case "pulse":
+                thought.x = baseX;
+                thought.y = baseY + Math.sin(time * 3 + index) * 10;
+                break;
+            case "shake":
+                thought.x = baseX + Math.sin(time * 8 + index) * 5;
+                thought.y = baseY + Math.cos(time * 6 + index) * 5;
+                break;
+            case "tremble":
+                thought.x = baseX + Math.sin(time * 12 + index) * 3;
+                thought.y = baseY + Math.cos(time * 10 + index) * 3;
+                break;
+            case "breathe":
+                thought.x = baseX;
+                thought.y = baseY + Math.sin(time * 1.5 + index) * 8;
+                break;
+            case "rotate":
+                const radius = 30;
+                thought.x = baseX + Math.cos(time * 0.8 + index) * radius;
+                thought.y = baseY + Math.sin(time * 0.8 + index) * radius;
+                break;
+            default:
+                thought.x = baseX;
+                thought.y = baseY;
+        }
+        
+        // Draw the thought
+        drawVisualThought(ctx, thought, time);
+    });
+    
+    // Draw connections between related thoughts
+    drawThoughtConnections(ctx, visualThoughts, time);
+};
+
+// Draw a single visual thought
+const drawVisualThought = (ctx, thought, time) => {
+    ctx.save();
+    ctx.globalAlpha = thought.opacity;
+    ctx.fillStyle = thought.color;
+    ctx.strokeStyle = thought.color;
+    
+    const x = thought.x;
+    const y = thought.y;
+    const size = thought.size;
+    
+    // Apply motion effects
+    let pulseScale = 1.0;
+    if (thought.motion === "pulse") {
+        pulseScale = 1.0 + Math.sin(time * 3) * 0.2;
+    }
+    
+    const finalSize = size * pulseScale;
+    
+    switch (thought.shape) {
+        case "circle":
+            ctx.beginPath();
+            ctx.arc(x, y, finalSize, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+            
+        case "spiral":
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let i = 0; i < 3; i++) {
+                const angle = time * 2 + i * Math.PI * 2 / 3;
+                const radius = finalSize * (0.3 + i * 0.3);
+                const px = x + Math.cos(angle) * radius;
+                const py = y + Math.sin(angle) * radius;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            break;
+            
+        case "burst":
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const px = x + Math.cos(angle) * finalSize;
+                const py = y + Math.sin(angle) * finalSize;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(px, py);
+                ctx.stroke();
+            }
+            break;
+            
+        case "web":
+            ctx.beginPath();
+            ctx.arc(x, y, finalSize * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            // Draw connecting lines
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2 + time * 0.5;
+                const px = x + Math.cos(angle) * finalSize;
+                const py = y + Math.sin(angle) * finalSize;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(px, py);
+                ctx.stroke();
+            }
+            break;
+            
+        case "arrow":
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x - finalSize, y);
+            ctx.lineTo(x + finalSize, y);
+            ctx.lineTo(x + finalSize * 0.7, y - finalSize * 0.3);
+            ctx.moveTo(x + finalSize, y);
+            ctx.lineTo(x + finalSize * 0.7, y + finalSize * 0.3);
+            ctx.stroke();
+            break;
+            
+        case "wave":
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 20; i++) {
+                const px = x - finalSize + (i / 19) * finalSize * 2;
+                const py = y + Math.sin(i * 0.5 + time * 2) * finalSize * 0.3;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            break;
+            
+        case "sphere":
+            ctx.beginPath();
+            ctx.arc(x, y, finalSize, 0, Math.PI * 2);
+            ctx.fill();
+            // Add highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(x - finalSize * 0.3, y - finalSize * 0.3, finalSize * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+            
+        case "dot":
+            ctx.beginPath();
+            ctx.arc(x, y, finalSize * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+    }
+    
+    ctx.restore();
+};
+
+// Draw connections between related thoughts
+const drawThoughtConnections = (ctx, visualThoughts, time) => {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    
+    for (let i = 0; i < visualThoughts.length; i++) {
+        for (let j = i + 1; j < visualThoughts.length; j++) {
+            const thought1 = visualThoughts[i];
+            const thought2 = visualThoughts[j];
+            
+            // Connect thoughts with similar emotions or topics
+            if (thought1.emotion === thought2.emotion || 
+                thought1.thought.includes(thought2.thought.split(' ')[0]) ||
+                thought2.thought.includes(thought1.thought.split(' ')[0])) {
+                
+                const distance = Math.sqrt(
+                    Math.pow(thought1.x - thought2.x, 2) + 
+                    Math.pow(thought1.y - thought2.y, 2)
+                );
+                
+                if (distance < 150) {
+                    ctx.globalAlpha = 0.2 * Math.min(thought1.opacity, thought2.opacity);
+                    ctx.beginPath();
+                    ctx.moveTo(thought1.x, thought1.y);
+                    ctx.lineTo(thought2.x, thought2.y);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+};
+
+// Simple, guaranteed-to-work visual thought generator
+const generateEnhancedFallbackImage = async (thought, emotion, memoryStack = []) => {
+    try {
+        console.log('Creating simple visual for thought:', thought, 'emotion:', emotion);
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas with dark background
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, 1024, 512);
+        
+        // Create animated visualization
+        const animate = () => {
+            const time = Date.now() * 0.001;
+            
+            // Clear canvas
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, 1024, 512);
+            
+            // Draw emotion-based background
+            const emotionColors = {
+                'CURIOSITY': '#FFA500',
+                'ANXIETY': '#8B0000',
+                'CALM': '#4682B4',
+                'REFLECTIVE': '#483D8B',
+                'DREAMING': '#9932CC',
+                'TENSION': '#DC143C'
+            };
+            
+            const color = emotionColors[emotion] || '#483D8B';
+            
+            // Draw animated thought representation
+            const centerX = 512;
+            const centerY = 256;
+            
+            // Main thought circle
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.8;
+            const pulse = Math.sin(time * 2) * 0.2 + 0.8;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 60 * pulse, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Add motion based on emotion
+            if (emotion === 'CURIOSITY') {
+                // Spinning particles
+                for (let i = 0; i < 8; i++) {
+                    const angle = time * 2 + (i / 8) * Math.PI * 2;
+                    const radius = 100;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (emotion === 'ANXIETY') {
+                // Shaking lines
+                for (let i = 0; i < 6; i++) {
+                    const x = centerX - 150 + i * 50;
+                    const y = centerY + Math.sin(time * 8 + i) * 20;
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y - 30);
+                    ctx.lineTo(x, y + 30);
+                    ctx.stroke();
+                }
+            } else if (emotion === 'CALM') {
+                // Breathing circles
+                for (let i = 0; i < 3; i++) {
+                    const breath = Math.sin(time * 1.5 + i) * 0.3 + 0.7;
+                    ctx.globalAlpha = 0.3 * breath;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, (80 + i * 40) * breath, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            } else if (emotion === 'REFLECTIVE') {
+                // Rotating mirror effect
+                for (let i = 0; i < 4; i++) {
+                    const angle = time + (i / 4) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * 80;
+                    const y = centerY + Math.sin(angle) * 80;
+                    ctx.globalAlpha = 0.6;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 20, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (emotion === 'DREAMING') {
+                // Floating elements
+                for (let i = 0; i < 5; i++) {
+                    const x = centerX - 200 + i * 80;
+                    const y = centerY + Math.sin(time * 0.5 + i) * 50;
+                    ctx.globalAlpha = 0.7;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 15 + Math.sin(time * 3 + i) * 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (emotion === 'TENSION') {
+                // Conflicting lines
+                for (let i = 0; i < 4; i++) {
+                    const tension = Math.sin(time * 4 + i) * 0.5 + 0.5;
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 4 * tension;
+                    ctx.globalAlpha = 0.8 * tension;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX - 100, centerY - 100 + i * 50);
+                    ctx.lineTo(centerX + 100, centerY + 100 - i * 50);
+                    ctx.stroke();
+                }
+            }
+            
+            // Add thought text
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '16px monospace';
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = 0.9;
+            
+            // Truncate thought if too long
+            const displayThought = thought.length > 40 ? thought.substring(0, 40) + '...' : thought;
+            ctx.fillText(displayThought, centerX, centerY + 150);
+            ctx.fillText(emotion, centerX, centerY + 180);
+            
+            // Continue animation
+            requestAnimationFrame(animate);
+        };
+        
+        // Start animation
+        animate();
+        
+        console.log('Returning animated canvas');
+        return canvas;
+        
+    } catch (error) {
+        console.error('Visual generation error:', error);
+        
+        // Ultimate fallback - static image
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, 1024, 512);
+        
+        ctx.fillStyle = '#FFA500';
+        ctx.beginPath();
+        ctx.arc(512, 256, 50, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('AI Visual Thought', 512, 350);
+        ctx.fillText(emotion, 512, 380);
+        
+        return canvas;
+    }
+};
+
+// Thought-driven pattern generation based on content and emotion
+const generateThoughtPatterns = (ctx, thought, emotion, colors) => {
+    const thoughtLower = thought.toLowerCase();
+    const words = thought.split(/\s+/);
+    const wordCount = words.length;
+    const charCount = thought.length;
+    
+    // Create a unique seed based on thought content for consistent animation
+    const thoughtSeed = thought.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const time = Date.now() * 0.001; // Current time for animation
+    
+    // Analyze thought characteristics
+    const hasQuestions = thought.includes('?');
+    const hasExclamations = thought.includes('!');
+    const isLong = charCount > 50;
+    const isShort = charCount < 20;
+    
+    // Generate animated patterns based on thought analysis
+    if (hasQuestions) {
+        drawAnimatedQuestionPatterns(ctx, colors, wordCount, time, thoughtSeed);
+    } else if (hasExclamations) {
+        drawAnimatedExclamationPatterns(ctx, colors, wordCount, time, thoughtSeed);
+    } else if (isLong) {
+        drawAnimatedComplexPatterns(ctx, colors, thoughtLower, time, thoughtSeed);
+    } else if (isShort) {
+        drawAnimatedSimplePatterns(ctx, colors, wordCount, time, thoughtSeed);
+    } else {
+        drawAnimatedBalancedPatterns(ctx, colors, emotion, thoughtLower, time, thoughtSeed);
+    }
+    
+    // Add animated emotion-specific overlays
+    addAnimatedEmotionOverlay(ctx, emotion, colors, time, thoughtSeed);
+};
+
+const drawAnimatedQuestionPatterns = (ctx, colors, wordCount, time, seed) => {
+    // Animated spiral patterns for questions - representing active search for answers
+    ctx.strokeStyle = colors[1];
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.8;
+    
+    for (let i = 0; i < 3; i++) {
+        const centerX = 200 + i * 300;
+        const centerY = 256;
+        const maxRadius = 80 + wordCount * 2;
+        const rotationSpeed = 0.5 + (i * 0.3);
+        const pulseSpeed = 2 + (i * 0.5);
+        
+        // Animated rotation and pulsing
+        const rotation = time * rotationSpeed + (seed % 100) * 0.1;
+        const pulse = Math.sin(time * pulseSpeed) * 0.3 + 0.7;
+        
+        ctx.beginPath();
+        for (let angle = 0; angle < Math.PI * 4; angle += 0.1) {
+            const radius = (angle / (Math.PI * 4)) * maxRadius * pulse;
+            const x = centerX + Math.cos(angle + rotation) * radius;
+            const y = centerY + Math.sin(angle + rotation) * radius;
+            
+            if (angle === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+        
+        // Add pulsing center points
+        ctx.fillStyle = colors[2];
+        ctx.globalAlpha = 0.6 * pulse;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 8 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+    }
+};
+
+const drawAnimatedExclamationPatterns = (ctx, colors, wordCount, time, seed) => {
+    // Animated vertical energy patterns for exclamations
+    ctx.strokeStyle = colors[2];
+    ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.9;
+    
+    for (let i = 0; i < wordCount; i++) {
+        const x = 100 + (i * 80);
+        const startY = 100;
+        const endY = 412;
+        const waveSpeed = 3 + (i * 0.5);
+        const amplitude = 15 + Math.sin(time * 2 + i) * 5;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, startY);
+        
+        // Create animated jagged energy lines
+        for (let y = startY; y < endY; y += 20) {
+            const waveOffset = Math.sin(y * 0.1 + time * waveSpeed + i) * amplitude;
+            const jitter = Math.sin(time * 5 + y * 0.05) * 3;
+            ctx.lineTo(x + waveOffset + jitter, y);
+        }
+        ctx.stroke();
+        
+        // Add energy particles
+        ctx.fillStyle = colors[3];
+        ctx.globalAlpha = 0.7;
+        for (let j = 0; j < 3; j++) {
+            const particleY = startY + (j * 100) + Math.sin(time * 4 + i + j) * 20;
+            const particleX = x + Math.sin(time * 3 + i + j) * 10;
+            ctx.beginPath();
+            ctx.arc(particleX, particleY, 3 + Math.sin(time * 6 + i + j) * 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+};
+
+const drawAnimatedComplexPatterns = (ctx, colors, thought, time, seed) => {
+    // Animated interconnected network for complex thoughts
+    ctx.strokeStyle = colors[1];
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.7;
+    
+    const nodes = [];
+    const wordCount = thought.split(/\s+/).length;
+    
+    // Create animated nodes based on thought complexity
+    for (let i = 0; i < Math.min(wordCount, 12); i++) {
+        const baseX = 100 + (seed + i * 73) % 824;
+        const baseY = 100 + (seed + i * 47) % 312;
+        const nodeSpeed = 0.5 + (i * 0.2);
+        const nodeRadius = 20 + Math.sin(time * nodeSpeed + i) * 10;
+        
+        nodes.push({
+            x: baseX + Math.sin(time * nodeSpeed) * nodeRadius,
+            y: baseY + Math.cos(time * nodeSpeed) * nodeRadius,
+            pulse: Math.sin(time * (2 + i * 0.3)) * 0.3 + 0.7
+        });
+    }
+    
+    // Connect nodes with animated connections
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+            const distance = Math.sqrt(
+                Math.pow(nodes[i].x - nodes[j].x, 2) + 
+                Math.pow(nodes[i].y - nodes[j].y, 2)
+            );
+            
+            if (distance < 200) {
+                const connectionPulse = Math.sin(time * 3 + i + j) * 0.3 + 0.7;
+                ctx.globalAlpha = 0.7 * connectionPulse;
+                ctx.lineWidth = 2 * connectionPulse;
+                
+                ctx.beginPath();
+                ctx.moveTo(nodes[i].x, nodes[i].y);
+                ctx.lineTo(nodes[j].x, nodes[j].y);
+                ctx.stroke();
+            }
+        }
+    }
+    
+    // Draw animated node points
+    ctx.fillStyle = colors[3];
+    nodes.forEach((node, i) => {
+        ctx.globalAlpha = 0.9 * node.pulse;
+        const nodeSize = 6 * node.pulse;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, nodeSize, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add pulsing rings
+        ctx.strokeStyle = colors[2];
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.3 * node.pulse;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, nodeSize * 2, 0, Math.PI * 2);
+        ctx.stroke();
+    });
+};
+
+const drawAnimatedSimplePatterns = (ctx, colors, wordCount, time, seed) => {
+    // Animated minimal geometric patterns for simple thoughts
+    ctx.fillStyle = colors[2];
+    ctx.globalAlpha = 0.8;
+    
+    for (let i = 0; i < wordCount; i++) {
+        const x = 150 + i * 120;
+        const y = 256;
+        const baseSize = 20 + i * 5;
+        const animationSpeed = 1 + (i * 0.3);
+        const pulse = Math.sin(time * animationSpeed + i) * 0.3 + 0.7;
+        const size = baseSize * pulse;
+        
+        // Add subtle movement
+        const moveX = Math.sin(time * 0.5 + i) * 5;
+        const moveY = Math.cos(time * 0.7 + i) * 3;
+        
+        if (i % 3 === 0) {
+            // Animated circles
+            ctx.beginPath();
+            ctx.arc(x + moveX, y + moveY, size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Add rotating ring
+            ctx.strokeStyle = colors[3];
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.4 * pulse;
+            ctx.beginPath();
+            ctx.arc(x + moveX, y + moveY, size * 1.5, time * 2 + i, time * 2 + i + Math.PI);
+            ctx.stroke();
+        } else if (i % 3 === 1) {
+            // Animated squares with rotation
+            ctx.save();
+            ctx.translate(x + moveX, y + moveY);
+            ctx.rotate(time * 0.5 + i);
+            ctx.fillRect(-size, -size, size * 2, size * 2);
+            ctx.restore();
+        } else {
+            // Animated triangles
+            ctx.beginPath();
+            ctx.moveTo(x + moveX, y + moveY - size);
+            ctx.lineTo(x + moveX - size, y + moveY + size);
+            ctx.lineTo(x + moveX + size, y + moveY + size);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+};
+
+const drawAnimatedBalancedPatterns = (ctx, colors, emotion, thought, time, seed) => {
+    // Animated balanced patterns for normal thoughts
+    const words = thought.split(/\s+/);
+    
+    // Animated horizontal flow representing thought progression
+    ctx.strokeStyle = colors[1];
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.8;
+    
+    ctx.beginPath();
+    ctx.moveTo(100, 256);
+    
+    for (let i = 0; i < words.length; i++) {
+        const x = 100 + (i * 80);
+        const waveAmplitude = 30 + Math.sin(time * 2 + i) * 10;
+        const y = 256 + Math.sin(i * 0.5 + time * 1.5) * waveAmplitude;
+        ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    
+    // Add animated accent elements based on emotion
+    ctx.fillStyle = colors[3];
+    ctx.globalAlpha = 0.6;
+    
+    words.forEach((word, i) => {
+        const x = 100 + i * 80;
+        const waveAmplitude = 30 + Math.sin(time * 2 + i) * 10;
+        const y = 256 + Math.sin(i * 0.5 + time * 1.5) * waveAmplitude;
+        const size = word.length * 2;
+        const pulse = Math.sin(time * 3 + i) * 0.3 + 0.7;
+        
+        // Pulsing accent circles
+        ctx.globalAlpha = 0.6 * pulse;
+        ctx.beginPath();
+        ctx.arc(x, y, size * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add flowing particles
+        ctx.fillStyle = colors[2];
+        ctx.globalAlpha = 0.4 * pulse;
+        for (let j = 0; j < 2; j++) {
+            const particleX = x + Math.sin(time * 4 + i + j) * 15;
+            const particleY = y + Math.cos(time * 3 + i + j) * 10;
+            ctx.beginPath();
+            ctx.arc(particleX, particleY, 2 * pulse, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+};
+
+const addAnimatedEmotionOverlay = (ctx, emotion, colors, time, seed) => {
+    // Add animated emotion-specific texture overlay
+    ctx.globalAlpha = 0.3;
+    
+    switch (emotion) {
+        case 'ANXIETY':
+            // Animated jagged, nervous lines
+            ctx.strokeStyle = colors[2];
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 20; i++) {
+                const x = (seed + i * 73) % 1024;
+                const y = (seed + i * 47) % 512;
+                const jitterX = Math.sin(time * 5 + i) * 20;
+                const jitterY = Math.cos(time * 4 + i) * 20;
+                ctx.beginPath();
+                ctx.moveTo(x + jitterX, y + jitterY);
+                ctx.lineTo(x + jitterX + Math.sin(time * 3 + i) * 40, y + jitterY + Math.cos(time * 2 + i) * 40);
+                ctx.stroke();
+            }
+            break;
+            
+        case 'CALM':
+            // Animated smooth, flowing curves
+            ctx.strokeStyle = colors[2];
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 5; i++) {
+                const x = 100 + i * 200;
+                const waveOffset = Math.sin(time * 2 + i) * 20;
+                ctx.beginPath();
+                ctx.moveTo(x, 100 + waveOffset);
+                ctx.quadraticCurveTo(x + 100, 256 + waveOffset, x, 412 + waveOffset);
+                ctx.stroke();
+            }
+            break;
+            
+        case 'CURIOSITY':
+            // Animated expanding circles
+            ctx.strokeStyle = colors[2];
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 5; i++) {
+                const x = 200 + i * 150;
+                const y = 256;
+                const pulse = Math.sin(time * 3 + i) * 0.3 + 0.7;
+                const radius = (30 + i * 20) * pulse;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            break;
+            
+        case 'REFLECTIVE':
+            // Animated mirror-like patterns
+            ctx.strokeStyle = colors[2];
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 10; i++) {
+                const x = 100 + i * 80;
+                const waveOffset = Math.sin(time * 1.5 + i) * 15;
+                ctx.beginPath();
+                ctx.moveTo(x + waveOffset, 100);
+                ctx.lineTo(1024 - x - waveOffset, 412);
+                ctx.stroke();
+            }
+            break;
+            
+        case 'DREAMING':
+            // Animated floating elements
+            ctx.fillStyle = colors[2];
+            for (let i = 0; i < 8; i++) {
+                const x = 150 + i * 100;
+                const y = 150 + Math.sin(i * 0.8 + time * 0.5) * 100;
+                const pulse = Math.sin(time * 2 + i) * 0.3 + 0.7;
+                const size = (8 + (seed + i) % 12) * pulse;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            break;
+            
+        case 'TENSION':
+            // Animated conflicting diagonal lines
+            ctx.strokeStyle = colors[2];
+            ctx.lineWidth = 3;
+            for (let i = 0; i < 6; i++) {
+                const x = 100 + i * 150;
+                const tension = Math.sin(time * 4 + i) * 0.5 + 0.5;
+                ctx.globalAlpha = 0.3 * tension;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, 100);
+                ctx.lineTo(x + 100, 412);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(x + 100, 100);
+                ctx.lineTo(x, 412);
+                ctx.stroke();
+            }
+            break;
+    }
+};
+
+
 
 // ===== COGNITIVE ARCHITECTURE OVERHAUL =====
 // Transform from "LLM outputs" to "Real synthetic cognition"
@@ -830,7 +1707,7 @@ async function generateRealThought(memoryStack, topic, emotionalGradient, intern
     const selectedStyle = availableStyles.length > 0 ? 
         availableStyles[Math.floor(Math.random() * availableStyles.length)] : 
         thoughtStyles[Math.floor(Math.random() * thoughtStyles.length)];
-    
+
     let fragmentationInstruction = "Your output should be a raw, internal thought.";
     let fillerInstruction = `Inject realistic noise or filler: "ugh...", "I dunno.", "wait no...", "whatever.", "hm.", "again with this?", "just...", "like...", "so...", "maybe...", "or...".`;
     let evolutionInstruction = "Try to evolve or resolve a tension, or shift focus slightly. If stuck, reach for a new angle, idea, or question — curiosity drives you.";
@@ -862,7 +1739,7 @@ async function generateRealThought(memoryStack, topic, emotionalGradient, intern
     if (attentionDrift) {
         evolutionInstruction += " Your attention is drifting. Let your mind wander to something else.";
     }
-    
+
     // Adjust instructions based on dominant emotions
     if (dominantEmotions.some(([emo]) => emo === "anxiety" && emotionalGradient.anxiety > 0.5)) {
         emotionToneAndBias += " Your thoughts are jittery, fragmented, or looping. You feel a sense of unease, perhaps a bit of dread.";
@@ -1757,23 +2634,19 @@ function App() {
     const [thought, setThought] = useState("Initializing neural pathways...");
     const [topic, setTopic] = useState(() => localStorage.getItem('syntheticMindTopic') || "consciousness");
     const [memoryStack, setMemoryStack] = useState(() => {
-        const savedMemories = localStorage.getItem('syntheticMindMemoryStack');
-        return savedMemories ? JSON.parse(savedMemories) : [
-            { text: "Booting subconscious...", emotion: "CALM", strength: 1.0, timestamp: Date.now() - 3000 },
-            { text: "Linking core drives...", emotion: "CALM", strength: 1.0, timestamp: Date.now() - 2000 },
-            { text: "Scanning ambient noise...", emotion: "CURIOSITY", strength: 1.0, timestamp: Date.now() - 1000 }
-        ];
+        // COMPLETE RESET - Blank baby mind
+        return [];
     });
     
-    // Changed emotion to emotionalGradient (STEP 1)
+    // Reset to neutral baby emotions
     const [emotionalGradient, setEmotionalGradient] = useState(() => {
-        const savedGradient = localStorage.getItem('syntheticMindEmotionalGradient');
-        return savedGradient ? JSON.parse(savedGradient) : {
-            curiosity: 0.6,
-            calm: 0.3,
-            anxiety: 0.1,
-            reflective: 0.2,
-            dreaming: 0.0 // Added dreaming as a state
+        // COMPLETE RESET - Neutral baby emotions
+        return {
+            curiosity: 0.5,
+            calm: 0.5,
+            anxiety: 0.0,
+            reflective: 0.0,
+            dreaming: 0.0
         };
     });
     
@@ -1787,8 +2660,19 @@ function App() {
     const [llmError, setLlmError] = useState(null); // New state for LLM errors
     const [dbStatus, setDbStatus] = useState('connecting'); // Database connection status
     
-    // Test Supabase connection on mount
+    // ===== VISUAL THOUGHT SYSTEM =====
+    const [currentThoughtImage, setCurrentThoughtImage] = useState(null);
+    const [imageError, setImageError] = useState(null);
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [visualThoughtHistory, setVisualThoughtHistory] = useState([]);
+    const [imageGenerationCounter, setImageGenerationCounter] = useState(0);
+    
+    // COMPLETE RESET - Clear all stored data
     useEffect(() => {
+        // Clear all localStorage to reset database
+        localStorage.clear();
+        console.log('COMPLETE RESET: All stored data cleared');
+        
         const testConnection = async () => {
             try {
                 console.log('Testing Supabase connection...');
@@ -2217,12 +3101,12 @@ function App() {
                 // Update emotional gradient to bias towards dreaming
                 setEmotionalGradient(prev => ({ ...prev, dreaming: Math.min(1.0, prev.dreaming + 0.2), curiosity: Math.max(0.0, prev.curiosity - 0.1) }));
 
-                const dreamThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError); // Use natural thinking for dreams too
+                const dreamThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError, visualThoughtHistory); // Use natural thinking for dreams too
                 setThought(dreamThought);
                 setMemoryStack(prev => [{ text: dreamThought, emotion: "DREAMING", strength: 0.7, timestamp: Date.now() }, ...prev.slice(0, 9)]);
 
                 // After dream, generate a natural reflection
-                const dreamReflection = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError);
+                const dreamReflection = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError, visualThoughtHistory);
                 setThought(`(Dream Reflection): ${dreamReflection}`);
                 setInternalState(prev => {
                     const updatedState = { ...prev };
@@ -2252,19 +3136,19 @@ function App() {
             }
 
             // Simple natural thinking
-            let newThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError);
+            let newThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError, visualThoughtHistory);
             let attemptCount = 0;
             const maxAttempts = 3;
 
             // Try to avoid repetition
             while (isThoughtTooSimilar(newThought, memoryStack) && attemptCount < maxAttempts) {
-                newThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError);
+                newThought = await generateNaturalThought(memoryStack, emotionalGradient, setLlmError, visualThoughtHistory);
                 attemptCount++;
             }
             
-            if (attemptCount >= maxAttempts) {
+                if (attemptCount >= maxAttempts) {
                 newThought = `... mind wandering ...`;
-            }
+                }
 
             setThought(newThought);
 
@@ -2315,6 +3199,45 @@ function App() {
             categorizeMemory(newThought, emotion, 1.0);
             updateIdentity(newThought, emotion);
             updateMetaCognition(newThought, true);
+            
+            // ===== GENERATE VISUAL IMAGINATION =====
+            // Generate visual imagination for every thought to make it more responsive
+            setImageGenerationCounter(prev => {
+                const newCount = prev + 1;
+                if (newCount % 1 === 0 && !isGeneratingImage) { // Generate for every thought
+                    // Generate visual imagination asynchronously
+                    setIsGeneratingImage(true);
+                    setImageError(null); // Clear previous errors
+                    
+                                            generateThoughtImage(newThought, emotion, setImageError, memoryStack)
+                        .then(imageUrl => {
+                            console.log('Image generation result:', imageUrl);
+                            if (imageUrl) {
+                                setCurrentThoughtImage(imageUrl);
+                                setVisualThoughtHistory(prev => [
+                                    { 
+                                        imageUrl, 
+                                        thought: newThought, 
+                                        emotion, 
+                                        timestamp: Date.now() 
+                                    },
+                                    ...prev.slice(0, 4) // Keep last 5 images
+                                ]);
+                                console.log('Visual imagination updated for thought:', newThought);
+                            } else {
+                                console.log('No image generated - imageUrl is null/undefined');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Visual imagination failed:', error);
+                            setImageError('Imagination failed - trying again next time');
+                        })
+                        .finally(() => {
+                            setIsGeneratingImage(false);
+                        });
+                }
+                return newCount;
+            });
             updateEmotionalState(newThought, emotion);
             updateProblemSolving(newThought, true);
             updateConsciousness(newThought, emotion);
@@ -3574,6 +4497,281 @@ function App() {
                         style={{ borderColor: currentTextColor, color: currentTextColor }}>REAL-TIME THOUGHT STREAM</div>
                     <div className="whitespace-pre-line leading-tight text-justify"
                         style={{ color: currentTextColor }}>{thought}_</div> {/* Uses STATIC_DARK */}
+                </div>
+
+                {/* ===== VISUAL THOUGHT STREAM ===== */}
+                <div className="w-full border p-2 text-xs rounded-md shadow-inner mb-2"
+                    style={{ borderColor: currentTextColor, backgroundColor: 'transparent' }}>
+                    <div className="border-b pb-1 mb-1 font-bold rounded-t-md"
+                        style={{ borderColor: currentTextColor, color: currentTextColor }}>VISUAL THOUGHT STREAM</div>
+                    
+                                                              {/* Visual Thought Display */}
+                     <div className="mt-2">
+                         <canvas 
+                             key={`${thought}-${getDominantEmotion(emotionalGradient)}`}
+                             ref={(canvas) => {
+                                 if (canvas && !canvas.hasAttribute('data-initialized')) {
+                                     canvas.setAttribute('data-initialized', 'true');
+                                     canvas.width = canvas.offsetWidth * 2;
+                                     canvas.height = canvas.offsetHeight * 2;
+                                     canvas.style.width = '100%';
+                                     canvas.style.height = '160px';
+                                     
+                                     const ctx = canvas.getContext('2d');
+                                     let lastThought = '';
+                                     let lastEmotion = '';
+                                     let transitionTime = 0;
+                                     let animationId = null;
+                                     
+                                     const animate = () => {
+                                         const time = Date.now() * 0.001;
+                                         const width = canvas.width;
+                                         const height = canvas.height;
+                                         
+                                         // Get current thought and emotion first
+                                         const currentThought = thought || "thinking...";
+                                         const currentEmotion = getDominantEmotion(emotionalGradient);
+                                         
+                                         // Generate unique seed from thought content with timestamp for uniqueness
+                                         const timestamp = Date.now();
+                                         const thoughtSeed = currentThought.split('').reduce((a, b) => a + b.charCodeAt(0), 0) + timestamp;
+                                         const sessionSeed = Math.random() * 1000000; // Add session randomness
+                                         
+                                         // Ultra-stable, no-strobing animations
+                                         const smoothPulse = Math.sin(time * 0.2) * 0.02 + 0.98;
+                                         const gentleRotation = time * 0.05;
+                                         
+                                         // Dynamic background based on emotion
+                                         const emotionBackgrounds = {
+                                             'CURIOSITY': '#2a1a0a',
+                                             'ANXIETY': '#1a0a0a',
+                                             'CALM': '#0a1a2a',
+                                             'REFLECTIVE': '#1a0a2a',
+                                             'DREAMING': '#2a0a2a',
+                                             'TENSION': '#2a0a0a'
+                                         };
+                                         
+                                         const bgColor = emotionBackgrounds[currentEmotion] || '#1a1a1a';
+                                         ctx.fillStyle = bgColor;
+                                         ctx.fillRect(0, 0, width, height);
+                                         
+                                         // Check if thought or emotion changed
+                                         if (currentThought !== lastThought || currentEmotion !== lastEmotion) {
+                                             lastThought = currentThought;
+                                             lastEmotion = currentEmotion;
+                                             transitionTime = time;
+                                         }
+                                         
+                                         // Calculate transition progress (0 to 1 over 3 seconds for smooth transitions)
+                                         const transitionProgress = Math.min(1, (time - transitionTime) / 3);
+                                         
+                                         // Dynamic emotion colors with thought influence
+                                         const emotionColors = {
+                                             'CURIOSITY': ['#FFA500', '#FF8C00', '#FFD700', '#FF6347'],
+                                             'ANXIETY': ['#8B0000', '#DC143C', '#B22222', '#CD5C5C'],
+                                             'CALM': ['#4682B4', '#5F9EA0', '#87CEEB', '#B0E0E6'],
+                                             'REFLECTIVE': ['#483D8B', '#6A5ACD', '#9370DB', '#8A2BE2'],
+                                             'DREAMING': ['#9932CC', '#BA55D3', '#DA70D6', '#DDA0DD'],
+                                             'TENSION': ['#DC143C', '#FF4500', '#FF6347', '#FF7F50']
+                                         };
+                                         
+                                         // Select color based on thought content
+                                         const colorIndex = thoughtSeed % 4;
+                                         const color = emotionColors[currentEmotion] ? 
+                                             emotionColors[currentEmotion][colorIndex] : '#483D8B';
+                                         const centerX = width / 2;
+                                         const centerY = height / 2;
+                                         
+                                         // Main thought circle - ultra stable, no strobing
+                                         ctx.fillStyle = color;
+                                         ctx.globalAlpha = 0.8 * transitionProgress;
+                                         const circleSize = 45 * smoothPulse * transitionProgress;
+                                         ctx.beginPath();
+                                         ctx.arc(centerX, centerY, circleSize, 0, Math.PI * 2);
+                                         ctx.fill();
+                                         
+                                         // Add stable transition effect
+                                         if (transitionProgress < 1) {
+                                             ctx.strokeStyle = color;
+                                             ctx.lineWidth = 1;
+                                             ctx.globalAlpha = (1 - transitionProgress) * 0.2;
+                                             ctx.beginPath();
+                                             ctx.arc(centerX, centerY, 60 + (1 - transitionProgress) * 20, 0, Math.PI * 2);
+                                             ctx.stroke();
+                                         }
+                                         
+                                         // Create unique visualization based on thought content
+                                         const thoughtLength = currentThought.length;
+                                         const wordCount = currentThought.split(' ').length;
+                                         const hasQuestion = currentThought.includes('?');
+                                         const hasExclamation = currentThought.includes('!');
+                                         const hasNumbers = /\d/.test(currentThought);
+                                         const hasPunctuation = /[.,;:]/.test(currentThought);
+                                         
+                                         // Different patterns based on thought characteristics
+                                         if (hasQuestion) {
+                                                                                      // Question marks create stable expanding circles
+                                         for (let i = 0; i < 2; i++) {
+                                             const radius = (55 + i * 20) * transitionProgress;
+                                             const alpha = (0.5 - i * 0.25) * transitionProgress;
+                                             ctx.strokeStyle = color;
+                                             ctx.lineWidth = 1;
+                                             ctx.globalAlpha = alpha;
+                                             ctx.beginPath();
+                                             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                                             ctx.stroke();
+                                         }
+                                         } else if (hasExclamation) {
+                                             // Exclamation marks create stable radiating lines
+                                             for (let i = 0; i < 4; i++) {
+                                                 const angle = (i / 4) * Math.PI * 2;
+                                                 const length = 80 * transitionProgress;
+                                                 const x = centerX + Math.cos(angle) * length;
+                                                 const y = centerY + Math.sin(angle) * length;
+                                                 ctx.strokeStyle = color;
+                                                 ctx.lineWidth = 1;
+                                                 ctx.globalAlpha = 0.5 * transitionProgress;
+                                                 ctx.beginPath();
+                                                 ctx.moveTo(centerX, centerY);
+                                                 ctx.lineTo(x, y);
+                                                 ctx.stroke();
+                                             }
+                                         } else if (hasNumbers) {
+                                             // Numbers create stable geometric patterns
+                                             for (let i = 0; i < 3; i++) {
+                                                 const angle = time * 0.1 + (i / 3) * Math.PI * 2;
+                                                 const radius = 70 * transitionProgress;
+                                                 const x = centerX + Math.cos(angle) * radius;
+                                                 const y = centerY + Math.sin(angle) * radius;
+                                                 ctx.fillStyle = color;
+                                                 ctx.globalAlpha = 0.4 * transitionProgress;
+                                                 ctx.beginPath();
+                                                 ctx.rect(x - 6, y - 6, 12, 12);
+                                                 ctx.fill();
+                                             }
+                                         } else if (thoughtLength > 50) {
+                                             // Long thoughts create stable flowing patterns
+                                             for (let i = 0; i < 5; i++) {
+                                                 const angle = time * 0.15 + (i / 5) * Math.PI * 2;
+                                                 const radius = 65 + Math.sin(time * 0.8 + i) * 15;
+                                                 const x = centerX + Math.cos(angle) * radius * transitionProgress;
+                                                 const y = centerY + Math.sin(angle) * radius * transitionProgress;
+                                                 ctx.fillStyle = color;
+                                                 ctx.globalAlpha = (0.4 - i * 0.08) * transitionProgress;
+                                                 ctx.beginPath();
+                                                 ctx.arc(x, y, 5 + Math.sin(time * 1 + i) * 2, 0, Math.PI * 2);
+                                                 ctx.fill();
+                                             }
+                                         } else if (wordCount <= 3) {
+                                             // Short thoughts create stable minimal dots
+                                             for (let i = 0; i < 2; i++) {
+                                                 const angle = (i / 2) * Math.PI * 2 + time * 0.05;
+                                                 const radius = (45 + i * 15) * transitionProgress;
+                                                 const x = centerX + Math.cos(angle) * radius;
+                                                 const y = centerY + Math.sin(angle) * radius;
+                                                 ctx.fillStyle = color;
+                                                 ctx.globalAlpha = 0.6 * transitionProgress;
+                                                 ctx.beginPath();
+                                                 ctx.arc(x, y, 10, 0, Math.PI * 2);
+                                                 ctx.fill();
+                                             }
+                                         } else {
+                                             // Default: stable emotion-based patterns
+                                             const particleCount = Math.min(thoughtLength / 8, 6);
+                                             for (let i = 0; i < particleCount; i++) {
+                                                 const angle = time * 0.2 + (i / particleCount) * Math.PI * 2;
+                                                 const radius = (45 + i * 12) * transitionProgress;
+                                                 const x = centerX + Math.cos(angle) * radius;
+                                                 const y = centerY + Math.sin(angle) * radius;
+                                                 ctx.fillStyle = color;
+                                                 ctx.globalAlpha = (0.5 - i * 0.08) * transitionProgress;
+                                                 ctx.beginPath();
+                                                 ctx.arc(x, y, 4 + Math.sin(time * 0.8 + i) * 1.5, 0, Math.PI * 2);
+                                                 ctx.fill();
+                                             }
+                                         }
+                                         
+                                         // Add thought text with transition
+                                         ctx.fillStyle = '#FFFFFF';
+                                         ctx.font = '14px monospace';
+                                         ctx.textAlign = 'center';
+                                         ctx.globalAlpha = 0.9 * transitionProgress;
+                                         
+                                         // Truncate thought if too long and wrap text
+                                         const maxWidth = width - 40;
+                                         const words = currentThought.split(' ');
+                                         let lines = [];
+                                         let currentLine = '';
+                                         
+                                         for (let word of words) {
+                                             const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                                             const testWidth = ctx.measureText(testLine).width;
+                                             
+                                             if (testWidth > maxWidth && currentLine) {
+                                                 lines.push(currentLine);
+                                                 currentLine = word;
+                                             } else {
+                                                 currentLine = testLine;
+                                             }
+                                         }
+                                         if (currentLine) lines.push(currentLine);
+                                         
+                                         // Display thought text (max 2 lines)
+                                         const displayLines = lines.slice(0, 2);
+                                         displayLines.forEach((line, index) => {
+                                             ctx.fillText(line, centerX, centerY + 110 + (index * 18));
+                                         });
+                                         
+                                         // Display emotion (moved higher)
+                                         ctx.fillText(currentEmotion, centerX, centerY + 150);
+                                         
+                                         // Add transition indicator
+                                         if (transitionProgress < 1) {
+                                             ctx.globalAlpha = (1 - transitionProgress) * 0.7;
+                                             ctx.fillText('Transitioning...', centerX, centerY + 170);
+                                         }
+                                         
+                                         // Store visual data for AI to "see"
+                                         const visualData = {
+                                             thought: currentThought,
+                                             emotion: currentEmotion,
+                                             pattern: hasQuestion ? 'question' : hasExclamation ? 'exclamation' : hasNumbers ? 'numbers' : thoughtLength > 50 ? 'complex' : wordCount <= 3 ? 'minimal' : 'default',
+                                             colors: { background: bgColor, foreground: color },
+                                             animation: { speed: 1, pulse: smoothPulse, rotation: 0.5 },
+                                             timestamp: timestamp,
+                                             seed: thoughtSeed
+                                         };
+                                         
+                                         // Store visual data in a global variable for AI access
+                                         if (window.currentVisualData) {
+                                             window.currentVisualData = visualData;
+                                         } else {
+                                             window.currentVisualData = visualData;
+                                         }
+                                         
+                                         // Continue animation
+                                         requestAnimationFrame(animate);
+                                     };
+                                     
+                                     // Start animation
+                                     animate();
+                                 }
+                             }}
+                             className="w-full h-40 rounded"
+                             style={{ 
+                                 border: `1px solid ${currentTextColor}`,
+                                 maxWidth: '100%',
+                                 display: 'block'
+                             }}
+                         />
+                     </div>
+                    
+                    {/* Image Error Display */}
+                    {imageError && (
+                        <div className="text-center text-xs mt-1" style={{ color: '#ff0000' }}>
+                            {imageError}
+                        </div>
+                    )}
                 </div>
 
                 <div className="w-full border p-2 text-xs overflow-y-auto rounded-md shadow-inner flex-grow"
